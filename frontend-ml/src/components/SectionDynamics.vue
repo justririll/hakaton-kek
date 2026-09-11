@@ -84,7 +84,6 @@ const trajectoryChartOption = computed(() => {
 
   return {
     ...baseOption(),
-    grid: { left: 16, right: 30, top: 40, bottom: 20, containLabel: true },
     tooltip: {
       ...baseOption().tooltip,
       trigger: "axis",
@@ -100,9 +99,13 @@ const trajectoryChartOption = computed(() => {
     },
     legend: {
       top: 0,
-      right: 10,
-      textStyle: { color: p.textSecondary, fontSize: 12 },
+      left: "center",
+      itemWidth: 10,
+      itemHeight: 10,
+      itemGap: 10,
+      textStyle: { color: p.textSecondary, fontSize: 10 },
     },
+    grid: { left: 8, right: 20, top: 44, bottom: 15, containLabel: true },
     xAxis: {
       type: "category",
       boundaryGap: false,
@@ -175,21 +178,28 @@ const mixOption = computed(() => {
     ...baseOption(),
     legend: {
       top: 0,
-      left: 0,
-      itemWidth: 10,
-      itemHeight: 10,
-      itemGap: 14,
-      textStyle: { color: p.textSecondary, fontSize: 12 },
+      left: "center",
+      itemWidth: 9,
+      itemHeight: 9,
+      itemGap: 10,
+      textStyle: { color: p.textSecondary, fontSize: 10 },
     },
-    grid: { left: 8, right: 16, top: 36, bottom: 8, containLabel: true },
+    grid: { left: 4, right: 16, top: 54, bottom: 8, containLabel: true },
     tooltip: { ...baseOption().tooltip, trigger: "axis", axisPointer: { type: "shadow" } },
-    xAxis: { type: "value", ...axisStyle(), name: "чел.", nameTextStyle: { color: p.muted, fontSize: 11 } },
+    xAxis: { type: "value", ...axisStyle(), name: "чел.", nameTextStyle: { color: p.muted, fontSize: 10 } },
     yAxis: {
       type: "category",
       data: rows.map((r) => r.short_name),
       ...axisStyle(),
       splitLine: { show: false },
       inverse: true,
+      axisLabel: {
+        color: p.textSecondary,
+        fontSize: 10,
+        width: 85,
+        overflow: "truncate",
+        interval: 0,
+      },
     },
     series: props.channels.map((channel, index) => ({
       name: channel.label,
@@ -217,20 +227,29 @@ const donutFormatOption = computed(() => {
   return {
     ...baseOption(),
     tooltip: { trigger: "item", formatter: "{b}: <b>{c} чел.</b> ({d}%)" },
-    legend: { bottom: 0, left: "center", textStyle: { color: p.textSecondary, fontSize: 11 } },
+    legend: {
+      bottom: 0,
+      left: "center",
+      itemWidth: 8,
+      itemHeight: 8,
+      itemGap: 8,
+      textStyle: { color: p.textSecondary, fontSize: 10 },
+    },
     series: [
       {
         name: "Формат",
         type: "pie",
-        radius: ["42%", "68%"],
-        center: ["50%", "45%"],
-        itemStyle: { borderRadius: 6, borderColor: p.surface, borderWidth: 2 },
+        radius: ["35%", "55%"],
+        center: ["50%", "38%"],
+        avoidLabelOverlap: true,
+        itemStyle: { borderRadius: 5, borderColor: p.surface, borderWidth: 2 },
         label: {
           show: true,
-          position: "outside",
+          position: "inside",
           formatter: "{d}%",
-          fontSize: 11,
-          color: p.textSecondary,
+          fontSize: 10,
+          color: "#ffffff",
+          fontWeight: "600",
         },
         data: totalByChannel,
       },
@@ -247,7 +266,7 @@ const planOption = computed(() => {
 
   return {
     ...baseOption(),
-    grid: { left: 8, right: 45, top: 16, bottom: 8, containLabel: true },
+    grid: { left: 4, right: 30, top: 16, bottom: 8, containLabel: true },
     tooltip: {
       ...baseOption().tooltip,
       trigger: "axis",
@@ -264,7 +283,7 @@ const planOption = computed(() => {
     xAxis: {
       type: "value",
       ...axisStyle(),
-      axisLabel: { color: p.muted, fontSize: 11, formatter: (v) => `${Math.round(v * 100)}%` },
+      axisLabel: { color: p.muted, fontSize: 10, formatter: (v) => `${Math.round(v * 100)}%` },
     },
     yAxis: {
       type: "category",
@@ -272,6 +291,13 @@ const planOption = computed(() => {
       ...axisStyle(),
       splitLine: { show: false },
       inverse: true,
+      axisLabel: {
+        color: p.textSecondary,
+        fontSize: 10,
+        width: 85,
+        overflow: "truncate",
+        interval: 0,
+      },
     },
     series: [
       {

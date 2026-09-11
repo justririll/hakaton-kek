@@ -422,4 +422,53 @@ onMounted(async () => {
   flex-wrap: wrap;
   gap: 12px;
 }
+
+@media (max-width: 860px) {
+  .shell {
+    padding: 12px 12px 60px;
+  }
+  .app-header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+    padding-bottom: 14px;
+  }
+  .header-actions {
+    display: flex;
+    width: 100%;
+    justify-content: space-between;
+    gap: 6px;
+  }
+  .quick-org-selector {
+    flex: 1;
+    min-width: 0;
+  }
+  .quick-org-selector select {
+    width: 100%;
+    min-width: 0;
+    font-size: 12px;
+  }
+  .btn-report {
+    padding: 6px 10px;
+    font-size: 12px;
+  }
+  .theme-btn {
+    padding: 6px 10px;
+    font-size: 12px;
+  }
+  .main-nav {
+    margin: 12px 0 16px;
+    padding: 4px;
+    gap: 6px;
+    -webkit-overflow-scrolling: touch;
+    scroll-snap-type: x mandatory;
+  }
+  .nav-tab {
+    flex: 0 0 auto;
+    padding: 7px 13px;
+    font-size: 12px;
+    gap: 6px;
+    scroll-snap-align: start;
+  }
+}
 </style>

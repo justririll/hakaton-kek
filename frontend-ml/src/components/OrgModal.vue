@@ -47,17 +47,24 @@ const formatChartOption = computed(() => {
   return {
     ...baseOption(),
     tooltip: { trigger: "item", formatter: "{b}: <b>{c} чел.</b> ({d}%)" },
-    legend: { bottom: 0, left: "center", textStyle: { color: p.textSecondary, fontSize: 11 } },
+    legend: {
+      bottom: 0,
+      left: "center",
+      itemWidth: 8,
+      itemHeight: 8,
+      itemGap: 8,
+      textStyle: { color: p.textSecondary, fontSize: 10 },
+    },
     series: [
       {
         name: "Форматы",
         type: "pie",
-        radius: ["45%", "70%"],
-        center: ["50%", "42%"],
-        avoidLabelOverlap: false,
-        itemStyle: { borderRadius: 6, borderColor: p.surface, borderWidth: 2 },
+        radius: ["36%", "56%"],
+        center: ["50%", "36%"],
+        avoidLabelOverlap: true,
+        itemStyle: { borderRadius: 4, borderColor: p.surface, borderWidth: 2 },
         label: { show: false },
-        emphasis: { label: { show: true, fontSize: 12, fontWeight: "bold" } },
+        emphasis: { label: { show: false } },
         data,
       },
     ],
@@ -216,7 +223,7 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown))
         <div class="two-cols">
           <div class="card mini-card">
             <h4>Структура аудитории по форматам</h4>
-            <EChart :option="formatChartOption" height="220px" />
+            <EChart :option="formatChartOption" height="240px" />
           </div>
 
           <div class="card mini-card">
@@ -520,4 +527,34 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown))
 }
 .btn-refresh { font-size: 11px; padding: 4px 8px; border-radius: 6px; gap: 4px; }
 .spinning { animation: spin 1s linear infinite; }
+
+@media (max-width: 680px) {
+  .stats-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+  .stat-card {
+    padding: 10px;
+  }
+  .stat-card .value {
+    font-size: 17px;
+  }
+  .two-cols {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+  .mini-card {
+    padding: 12px;
+  }
+  .plan-card {
+    padding: 12px;
+  }
+  .plan-meta {
+    flex-direction: column;
+    gap: 4px;
+  }
+  .ai-org-card {
+    padding: 12px;
+  }
+}
 </style>
