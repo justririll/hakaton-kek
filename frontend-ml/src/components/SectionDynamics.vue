@@ -250,12 +250,27 @@ const mixOption = computed(() => {
 /** Доли форматов в сети (Donut Chart) */
 const donutFormatOption = computed(() => {
   const p = palette()
+  const sums = props.channels.map((ch) =>
+    props.organizations.reduce((acc, o) => acc + (o[`audience_${ch.key}`] || 0), 0),
+  )
+  const total = sums.reduce((a, b) => a + b, 0)
+
+  // У переподготовки доля порядка десятых процента: подпись на таком секторе
+  // читаться не может и налезает на соседнюю. Такие доли остаются в легенде
+  // и во всплывающей подсказке, но без подписи на диаграмме.
+  const LABEL_THRESHOLD = 3
   const totalByChannel = props.channels.map((ch, idx) => {
-    const sum = props.organizations.reduce((acc, o) => acc + (o[`audience_${ch.key}`] || 0), 0)
+    const share = total ? (sums[idx] / total) * 100 : 0
+    const visible = share >= LABEL_THRESHOLD
+    const color = p.series[idx % p.series.length]
     return {
       name: ch.label,
-      value: sum,
-      itemStyle: { color: p.series[idx % p.series.length] },
+      value: sums[idx],
+      itemStyle: { color },
+      // Выноска и подпись в цвете своего сектора: так видно, к какой доле
+      // относится число, без сверки с легендой.
+      label: { show: visible, color },
+      labelLine: { show: visible, lineStyle: { color } },
     }
   })
 
@@ -267,25 +282,34 @@ const donutFormatOption = computed(() => {
       left: "center",
       itemWidth: 8,
       itemHeight: 8,
-      itemGap: 8,
+      itemGap: 10,
       textStyle: { color: p.textSecondary, fontSize: 10 },
+      // Переподготовка — это пять человек на всю сеть, её сектор занимает
+      // доли пикселя и подписи не получает. Значение в легенде не даёт
+      // формату исчезнуть с экрана совсем.
+      formatter: (name) => {
+        const item = totalByChannel.find((i) => i.name === name)
+        return item ? `${name} — ${compact(item.value)} чел.` : name
+      },
     },
     series: [
       {
         name: "Формат",
         type: "pie",
-        radius: ["35%", "55%"],
-        center: ["50%", "38%"],
+        radius: ["32%", "47%"],
+        center: ["50%", "40%"],
+        // Работает только для подписей снаружи: внутри сектора ECharts их
+        // не разводит, поэтому на узких долях они и наезжали друг на друга.
         avoidLabelOverlap: true,
         itemStyle: { borderRadius: 5, borderColor: p.surface, borderWidth: 2 },
         label: {
           show: true,
-          position: "inside",
-          formatter: "{d}%",
-          fontSize: 10,
-          color: "#ffffff",
-          fontWeight: "600",
+          position: "outside",
+          formatter: ({ percent }) => `${percent.toFixed(1)}%`,
+          fontSize: 11,
+          fontWeight: "700",
         },
+        labelLine: { show: true, length: 14, length2: 16, smooth: false, lineStyle: { width: 1.5 } },
         data: totalByChannel,
       },
     ],
