@@ -57,14 +57,13 @@ const filteredOrgs = computed(() => {
 
 <template>
   <div class="stack">
-    <!-- Понятное резюме -->
+    <!-- Резюме -->
     <div class="takeaway-box">
-      <span class="takeaway-icon">🏛️</span>
       <div class="takeaway-text">
-        <strong>Витрина учреждений сети:</strong>
-        Все <b>20 центров прототипирования</b> вузов культуры России.
-        Выберите любой центр, чтобы изучить его показатели, структуру форматов обучения,
-        статус годового плана и персональные рекомендации по развитию.
+        <strong>Каталог учреждений сети:</strong>
+        Все <b>20 центров прототипирования</b> творческих вузов РФ.
+        Выберите организацию для перехода в досье с анализом форматов обучения,
+        статусом годового плана и персональными рекомендациями.
       </div>
     </div>
 
@@ -75,16 +74,16 @@ const filteredOrgs = computed(() => {
           <input
             type="search"
             v-model="search"
-            placeholder="Поиск организации по названию..."
+            placeholder="Поиск по названию организации..."
           />
         </div>
         <div class="sort-box">
-          <label class="muted">Сортировать по:</label>
+          <span class="muted">Сортировка:</span>
           <select v-model="sortBy">
-            <option value="audience">Посещаемости (чел.)</option>
-            <option value="plan">Выполнению плана (%)</option>
-            <option value="products">Творческим продуктам (шт.)</option>
-            <option value="revenue">Доходу от услуг (₽)</option>
+            <option value="audience">Посещаемость (чел.)</option>
+            <option value="plan">Выполнение плана (%)</option>
+            <option value="products">Арт-продукты (шт.)</option>
+            <option value="revenue">Доход от услуг (₽)</option>
           </select>
         </div>
       </div>
@@ -106,7 +105,7 @@ const filteredOrgs = computed(() => {
             :class="{ active: selectedCluster === String(p.cluster_id) }"
             @click="selectedCluster = String(p.cluster_id)"
           >
-            {{ getClusterMeta(p.cluster_id).icon }} {{ getClusterMeta(p.cluster_id).shortName }}
+            {{ getClusterMeta(p.cluster_id).shortName }}
           </button>
         </div>
 
@@ -124,28 +123,28 @@ const filteredOrgs = computed(() => {
             :class="{ active: selectedStatus === 'опережение' }"
             @click="selectedStatus = 'опережение'"
           >
-            ▲ Опережение
+            Опережение
           </button>
           <button
             class="pill-btn"
             :class="{ active: selectedStatus === 'в графике' }"
             @click="selectedStatus = 'в графике'"
           >
-            ● В графике
+            В графике
           </button>
           <button
             class="pill-btn"
             :class="{ active: selectedStatus === 'риск' }"
             @click="selectedStatus = 'риск'"
           >
-            ▲ Риск
+            Риск
           </button>
           <button
             class="pill-btn"
             :class="{ active: selectedStatus === 'срыв' }"
             @click="selectedStatus = 'срыв'"
           >
-            ■ Срыв
+            Срыв
           </button>
         </div>
       </div>
@@ -162,10 +161,10 @@ const filteredOrgs = computed(() => {
         <div class="card-header">
           <div class="header-main">
             <span
-              class="badge"
-              :style="{ background: org.clusterMeta.glow, color: org.clusterMeta.color }"
+              class="badge badge-neutral"
+              :style="{ color: org.clusterMeta.color }"
             >
-              {{ org.clusterMeta.icon }} {{ org.clusterMeta.name }}
+              {{ org.clusterMeta.name }}
             </span>
             <h3 class="org-title">{{ org.short_name }}</h3>
           </div>
@@ -179,7 +178,7 @@ const filteredOrgs = computed(() => {
               'badge-neutral': org.planInfo.status === 'без базы',
             }"
           >
-            {{ PLAN_STATUS[org.planInfo.status]?.icon }} {{ org.planInfo.status }}
+            {{ org.planInfo.status }}
           </span>
         </div>
 
@@ -189,7 +188,7 @@ const filteredOrgs = computed(() => {
         <div v-if="org.planInfo.completion !== undefined" class="plan-mini">
           <div class="plan-mini-labels">
             <span class="muted">Выполнение плана:</span>
-            <strong>{{ percent(org.planInfo.completion) }}</strong>
+            <strong class="mono-nums">{{ percent(org.planInfo.completion) }}</strong>
           </div>
           <div class="track">
             <div
@@ -223,7 +222,7 @@ const filteredOrgs = computed(() => {
         </div>
 
         <div class="card-footer">
-          <span class="view-hint">Открыть полное досье →</span>
+          <span class="view-hint">Открыть досье →</span>
         </div>
       </article>
 
@@ -260,10 +259,10 @@ const filteredOrgs = computed(() => {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: 6px;
+  gap: 4px;
 }
 .filter-label { font-size: 12px; font-weight: 600; width: 64px; }
-.pill-btn { font-size: 11px; padding: 4px 10px; border-radius: 999px; }
+.pill-btn { font-size: 11px; padding: 4px 10px; border-radius: 6px; }
 
 .orgs-grid {
   display: grid;
@@ -275,7 +274,7 @@ const filteredOrgs = computed(() => {
   flex-direction: column;
   gap: 12px;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all 0.15s ease;
 }
 .org-card:hover {
   transform: translateY(-2px);
@@ -285,12 +284,12 @@ const filteredOrgs = computed(() => {
 
 .card-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }
 .header-main { display: flex; flex-direction: column; gap: 4px; }
-.org-title { font-size: 16px; font-weight: 700; margin: 0; }
+.org-title { font-size: 15px; font-weight: 700; margin: 0; }
 .org-full { font-size: 12px; line-height: 1.4; margin: 0; }
 
 .plan-mini { display: flex; flex-direction: column; gap: 4px; }
 .plan-mini-labels { display: flex; justify-content: space-between; font-size: 11px; }
-.track { height: 6px; background: var(--raised); border-radius: 999px; overflow: hidden; }
+.track { height: 5px; background: var(--raised); border-radius: 999px; overflow: hidden; }
 .fill { height: 100%; border-radius: 999px; }
 
 .metrics-grid {
@@ -299,7 +298,7 @@ const filteredOrgs = computed(() => {
   gap: 8px;
   background: var(--raised);
   padding: 10px;
-  border-radius: 10px;
+  border-radius: 8px;
 }
 .m-cell { display: flex; flex-direction: column; gap: 2px; }
 .m-key { font-size: 11px; color: var(--muted); }

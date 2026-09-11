@@ -100,8 +100,8 @@ const imputed = computed(() =>
           :class="{ active: severity === key }"
           @click="severity = key"
         >
-          <span :style="{ color: SEVERITY[key].color }">{{ SEVERITY[key].icon }}</span>
-          {{ SEVERITY[key].label }} · {{ value }}
+          <span class="severity-dot" :style="{ backgroundColor: SEVERITY[key].color }" />
+          <span>{{ SEVERITY[key].label }} · {{ value }}</span>
         </button>
       </div>
       <div class="scroll-x">
@@ -117,8 +117,9 @@ const imputed = computed(() =>
           <tbody>
             <tr v-for="(row, i) in filtered" :key="i">
               <td class="nowrap">
-                <span :style="{ color: SEVERITY[row.severity].color }">{{ SEVERITY[row.severity].icon }}</span>
-                {{ SEVERITY[row.severity].label }}
+                <span class="badge" :style="{ borderColor: SEVERITY[row.severity].color, color: SEVERITY[row.severity].color }">
+                  {{ SEVERITY[row.severity].label }}
+                </span>
               </td>
               <td class="nowrap">{{ row.org_name }}</td>
               <td class="nowrap muted">{{ KINDS[row.kind] || row.kind }}</td>
@@ -134,6 +135,7 @@ const imputed = computed(() =>
 <style scoped>
 .stack { display: flex; flex-direction: column; gap: 20px; }
 .sub { font-size: 13px; margin-top: 6px; max-width: 82ch; }
+.severity-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 6px; }
 .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; margin: 18px 0; }
 .tile-value { font-size: 22px; font-weight: 600; letter-spacing: -0.02em; }
 .tile-label { font-size: 12px; color: var(--text-secondary); margin-top: 2px; }

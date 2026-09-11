@@ -1,10 +1,11 @@
 <script setup>
 /**
  * Раздел «Рекомендации по программированию мероприятий»:
- * Интерактивный симулятор «Что если», каталог 50 мер,
+ * Симулятор эффекта управленческих решений, каталог 50 мер,
  * фильтрация по типам, важности и центрам.
  */
 import { computed, ref } from "vue"
+import Icon from "./Icon.vue"
 import Disclosure from "./Disclosure.vue"
 import { compact, money, getClusterMeta } from "../theme"
 
@@ -17,18 +18,18 @@ const emit = defineEmits(["select-org"])
 
 // Типы рекомендаций
 const KIND = {
-  fix_format: { label: "Мало людей на встречах", icon: "👥", badgeClass: "badge-accent" },
-  expand_format: { label: "Формат работает — масштабировать", icon: "↗", badgeClass: "badge-good" },
-  launch_format: { label: "Запустить новый формат", icon: "+", badgeClass: "badge-purple" },
-  raise_conversion: { label: "Низкая конверсия в продукты", icon: "🎨", badgeClass: "badge-warning" },
-  monetize: { label: "Ввести платную модель", icon: "₽", badgeClass: "badge-pink" },
-  amplify_visibility: { label: "Слабая медийность (PR)", icon: "📢", badgeClass: "badge-accent" },
-  plan_risk: { label: "Риск срыва плана года", icon: "⚠️", badgeClass: "badge-danger" },
+  fix_format: { label: "Низкая наполняемость", badgeClass: "badge-accent" },
+  expand_format: { label: "Масштабирование формата", badgeClass: "badge-good" },
+  launch_format: { label: "Запуск нового формата", badgeClass: "badge-purple" },
+  raise_conversion: { label: "Конверсия в арт-продукты", badgeClass: "badge-warning" },
+  monetize: { label: "Платная модель и ДПО", badgeClass: "badge-pink" },
+  amplify_visibility: { label: "Медийность и PR", badgeClass: "badge-accent" },
+  plan_risk: { label: "Риск срыва плана года", badgeClass: "badge-danger" },
 }
 
 const IMPACT_WORD = {
   participants: "участников",
-  products: "готовых арт-работ",
+  products: "арт-работ",
   revenue: "объёма услуг",
   publications: "публикаций",
   formats: "мероприятий к плану",
@@ -38,7 +39,7 @@ const activeKind = ref("all")
 const onlyImportant = ref(false)
 const searchQuery = ref("")
 
-// Параметры интерактивного симулятора «Что если»
+// Параметры симулятора «Что если»
 const simAttendanceBoost = ref(20) // %
 const simConversionBoost = ref(15) // %
 const simMonetizeBoost = ref(10) // %
@@ -95,13 +96,12 @@ const filtered = computed(() => {
 
 <template>
   <div class="stack">
-    <!-- Главный вывод простыми словами -->
+    <!-- Главный вывод -->
     <div class="takeaway-box">
-      <span class="takeaway-icon">⚡</span>
       <div class="takeaway-text">
         <strong>Программирование мероприятий на основе данных:</strong>
-        Каждая из <b>50 рекомендаций</b> получена сравнением центра только со своими соратниками по архетипу.
-        Если соседи по кластеру уже собирают больше людей или делают больше арт-продуктов в тех же условиях —
+        Каждая из <b>50 рекомендаций</b> сформирована сопоставлением центра с соратниками по архетипу.
+        Если соседи по кластеру уже собирают больше людей или производят больше арт-продуктов в тех же условиях —
         это доказанный резерв. Совокупный потенциал сети:
         <b>+{{ compact(summary.impact?.participants?.total) }} участников</b>,
         <b>+{{ compact(summary.impact?.products?.total) }} арт-продуктов</b> и
@@ -109,24 +109,21 @@ const filtered = computed(() => {
       </div>
     </div>
 
-    <!-- Интерактивный симулятор «Что если...» -->
+    <!-- Симулятор управленческих решений -->
     <div class="card simulator-card">
       <div class="sim-header">
-        <div class="sim-badge">
-          <span>🎛️</span>
-          <span>Интерактивный симулятор программирования сети</span>
-        </div>
+        <div class="sim-code-tag">СИМУЛЯТОР СЕТИ</div>
         <button class="reset-btn" @click="resetSim">Сбросить параметры</button>
       </div>
-      <h2>Моделирование эффекта управленческих решений («Что если»)</h2>
+      <h2>Моделирование эффекта управленческих решений</h2>
       <p class="muted sub">
-        Двигайте ползунки, чтобы смоделировать, как корректировка программ мероприятий повлияет на показатели всей сети:
+        Корректировка параметров программирования мероприятий и расчёт прогноза сетевого эффекта:
       </p>
 
       <div class="sliders-grid">
         <div class="slider-box">
           <div class="slider-top">
-            <span class="slider-label">👥 Поднять наполняемость мастер-классов</span>
+            <span class="slider-label">Наполняемость мероприятий</span>
             <strong class="slider-val">+{{ simAttendanceBoost }}%</strong>
           </div>
           <input type="range" min="0" max="50" step="5" v-model.number="simAttendanceBoost" />
@@ -135,16 +132,16 @@ const filtered = computed(() => {
 
         <div class="slider-box">
           <div class="slider-top">
-            <span class="slider-label">🎨 Добавить проектный трек (конверсия)</span>
+            <span class="slider-label">Конверсия в арт-продукты</span>
             <strong class="slider-val">+{{ simConversionBoost }}%</strong>
           </div>
           <input type="range" min="0" max="40" step="5" v-model.number="simConversionBoost" />
-          <small class="muted">Введение обязательного творческого прототипа на курсах</small>
+          <small class="muted">Введение обязательного проектного трека на курсах</small>
         </div>
 
         <div class="slider-box">
           <div class="slider-top">
-            <span class="slider-label">💰 Запустить платные спецкурсы и ДПО</span>
+            <span class="slider-label">Платные программы и ДПО</span>
             <strong class="slider-val">+{{ simMonetizeBoost }}%</strong>
           </div>
           <input type="range" min="0" max="60" step="5" v-model.number="simMonetizeBoost" />
@@ -176,7 +173,7 @@ const filtered = computed(() => {
           <input
             type="search"
             v-model="searchQuery"
-            placeholder="Поиск по центру или ключевому слову..."
+            placeholder="Поиск по названию центра или действию..."
           />
         </div>
         <div class="important-toggle">
@@ -193,7 +190,7 @@ const filtered = computed(() => {
           :class="{ active: activeKind === 'all' }"
           @click="activeKind = 'all'"
         >
-          Все · {{ recommendations.length }}
+          Все ({{ recommendations.length }})
         </button>
         <button
           v-for="[kind, count] in kinds"
@@ -202,9 +199,8 @@ const filtered = computed(() => {
           :class="{ active: activeKind === kind }"
           @click="activeKind = kind"
         >
-          <span>{{ KIND[kind]?.icon }}</span>
           <span>{{ KIND[kind]?.label || kind }}</span>
-          <small>· {{ count }}</small>
+          <span class="chip-count">{{ count }}</span>
         </button>
       </div>
     </div>
@@ -221,22 +217,22 @@ const filtered = computed(() => {
           <div class="org-info">
             <span class="org-name-btn">{{ row.org_name }}</span>
             <span class="badge" :class="KIND[row.rec_type]?.badgeClass">
-              {{ KIND[row.rec_type]?.icon }} {{ KIND[row.rec_type]?.label }}
+              {{ KIND[row.rec_type]?.label }}
             </span>
           </div>
           <span class="badge" :class="weight(row.priority).class">
-            {{ row.priority }}/100
+            {{ row.priority }} / 100
           </span>
         </div>
 
         <div class="rec-core">
           <div class="rec-action-box">
-            <span class="muted action-tag">Что сделать:</span>
+            <span class="muted action-tag">Действие:</span>
             <h3 class="action-text">{{ row.action }}</h3>
           </div>
 
           <div class="rec-gain-box">
-            <span class="gain-label">Ожидаемый результат:</span>
+            <span class="gain-label">Ожидаемый эффект:</span>
             <strong class="gain-value">{{ impactText(row) }}</strong>
           </div>
         </div>
@@ -247,14 +243,14 @@ const filtered = computed(() => {
 
         <div class="rec-footer">
           <span class="muted peer-stat">
-            У соратников по кластеру: <b>{{ row.evidence?.peer_median ?? "—" }}</b> vs текущее: <b>{{ row.evidence?.own_rate ?? "—" }}</b>
+            Бенчмарк архетипа: <b>{{ row.evidence?.peer_median ?? "—" }}</b> vs текущее: <b>{{ row.evidence?.own_rate ?? "—" }}</b>
           </span>
-          <span class="view-dossier-hint">Открыть досье →</span>
+          <span class="view-dossier-hint">Досье →</span>
         </div>
       </article>
 
       <div v-if="!filtered.length" class="empty-state card">
-        <p class="muted">По заданным фильтрам рекомендаций не найдено.</p>
+        <p class="muted">По заданным критериям рекомендаций не найдено.</p>
       </div>
     </div>
   </div>
@@ -265,9 +261,9 @@ const filtered = computed(() => {
 .sub { font-size: 13px; margin-top: 2px; }
 
 .simulator-card {
-  background: linear-gradient(135deg, var(--surface) 0%, var(--raised) 100%);
-  border: 1px solid rgba(59, 130, 246, 0.3);
-  box-shadow: 0 4px 20px var(--accent-glow);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow);
 }
 .sim-header {
   display: flex;
@@ -275,28 +271,25 @@ const filtered = computed(() => {
   align-items: center;
   margin-bottom: 8px;
 }
-.sim-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 12px;
+.sim-code-tag {
+  font-size: 11px;
   font-weight: 700;
+  font-family: monospace;
   color: var(--accent);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.05em;
 }
 .reset-btn { font-size: 12px; padding: 4px 10px; }
 
 .sliders-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-  gap: 16px;
-  margin: 18px 0;
+  gap: 14px;
+  margin: 16px 0;
 }
 .slider-box {
-  background: var(--surface);
+  background: var(--raised);
   border: 1px solid var(--border);
-  border-radius: 12px;
+  border-radius: 10px;
   padding: 14px;
   display: flex;
   flex-direction: column;
@@ -304,7 +297,7 @@ const filtered = computed(() => {
 }
 .slider-top { display: flex; justify-content: space-between; align-items: center; }
 .slider-label { font-size: 13px; font-weight: 600; color: var(--text-primary); }
-.slider-val { font-size: 14px; color: var(--accent); }
+.slider-val { font-size: 13px; color: var(--accent); font-family: monospace; }
 
 .sim-results {
   display: grid;
@@ -314,15 +307,15 @@ const filtered = computed(() => {
   border-top: 1px solid var(--border);
 }
 .res-item {
-  background: var(--surface);
+  background: var(--raised);
   border: 1px solid var(--border);
-  border-radius: 12px;
+  border-radius: 10px;
   padding: 12px 16px;
   display: flex;
   flex-direction: column;
   gap: 2px;
 }
-.res-value { font-size: 22px; font-weight: 700; color: var(--success); }
+.res-value { font-size: 22px; font-weight: 700; color: var(--success); font-variant-numeric: tabular-nums; }
 .res-label { font-size: 12px; color: var(--muted); }
 
 .search-filter-card { display: flex; flex-direction: column; gap: 14px; }
@@ -344,14 +337,19 @@ const filtered = computed(() => {
   color: var(--text-secondary);
 }
 
-.chips-row { display: flex; flex-wrap: wrap; gap: 6px; }
+.chips-row { display: flex; flex-wrap: wrap; gap: 4px; }
 .chip-btn {
   font-size: 12px;
-  padding: 6px 12px;
-  border-radius: 999px;
+  padding: 5px 11px;
+  border-radius: 6px;
   display: inline-flex;
   align-items: center;
-  gap: 5px;
+  gap: 6px;
+}
+.chip-count {
+  font-size: 11px;
+  opacity: 0.7;
+  font-family: monospace;
 }
 
 .recs-grid {
@@ -364,8 +362,8 @@ const filtered = computed(() => {
   flex-direction: column;
   gap: 12px;
   cursor: pointer;
-  transition: all 0.2s ease;
-  border-left: 4px solid var(--accent);
+  transition: all 0.15s ease;
+  border-left: 3px solid var(--accent);
 }
 .rec-card:hover {
   transform: translateY(-2px);
@@ -382,13 +380,13 @@ const filtered = computed(() => {
   gap: 8px;
   background: var(--raised);
   padding: 12px;
-  border-radius: 10px;
+  border-radius: 8px;
 }
 .action-tag { font-size: 11px; text-transform: uppercase; font-weight: 600; }
-.action-text { font-size: 14px; font-weight: 600; line-height: 1.4; color: var(--text-primary); }
+.action-text { font-size: 13px; font-weight: 600; line-height: 1.45; color: var(--text-primary); }
 .rec-gain-box { display: flex; align-items: center; gap: 8px; font-size: 13px; }
 .gain-label { color: var(--muted); }
-.gain-value { color: var(--success); font-size: 14px; }
+.gain-value { color: var(--success); font-size: 13px; font-weight: 700; }
 
 .rec-rationale { font-size: 12px; line-height: 1.5; margin: 0; }
 .rec-footer {

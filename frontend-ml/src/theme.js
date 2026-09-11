@@ -49,71 +49,76 @@ export const STATUS = {
 }
 
 export const PLAN_STATUS = {
-  опережение: { color: STATUS.good, icon: '▲' },
-  'в графике': { color: STATUS.good, icon: '●' },
-  риск: { color: STATUS.warning, icon: '▲' },
-  срыв: { color: STATUS.critical, icon: '■' },
-  'без базы': { color: '#898781', icon: '—' },
+  опережение: { color: STATUS.good, label: 'Опережение' },
+  'в графике': { color: STATUS.good, label: 'В графике' },
+  риск: { color: STATUS.warning, label: 'Риск' },
+  срыв: { color: STATUS.critical, label: 'Срыв' },
+  'без базы': { color: '#898781', label: 'Без базы' },
 }
 
 export const SEVERITY = {
-  error: { color: STATUS.critical, icon: '■', label: 'ошибка' },
-  warning: { color: STATUS.warning, icon: '▲', label: 'предупреждение' },
-  info: { color: '#898781', icon: '●', label: 'наблюдение' },
+  error: { color: STATUS.critical, label: 'ошибка' },
+  warning: { color: STATUS.warning, label: 'предупреждение' },
+  info: { color: '#898781', label: 'наблюдение' },
 }
 
 export const CLUSTER_METAS = {
   0: {
     id: 0,
+    index: '01',
+    code: 'MASS',
     name: 'Массовые просветители',
     shortName: 'Просветители',
     color: '#3b82f6',
-    glow: 'rgba(59, 130, 246, 0.15)',
-    icon: '🏛️',
+    glow: 'rgba(59, 130, 246, 0.12)',
     motto: 'Широкий охват и открытые лекции',
     badge: 'Массовый охват',
     description: 'Центры с большим потоком участников на общедоступных вводных курсах и открытых встречах.',
   },
   1: {
     id: 1,
+    index: '02',
+    code: 'MEDIA',
     name: 'Медийные площадки',
     shortName: 'Медиа-хабы',
     color: '#ec4899',
-    glow: 'rgba(236, 72, 153, 0.15)',
-    icon: '📢',
+    glow: 'rgba(236, 72, 153, 0.12)',
     motto: 'Федеральный PR и выставочные площадки',
     badge: 'Медиа & PR',
     description: 'Лидеры по числу публикаций в СМИ и представленности на федеральных культурных событиях.',
   },
   2: {
     id: 2,
+    index: '03',
+    code: 'PROD',
     name: 'Продуктовые мастерские',
     shortName: 'Мастерские',
     color: '#10b981',
-    glow: 'rgba(16, 185, 129, 0.15)',
-    icon: '🎨',
+    glow: 'rgba(16, 185, 129, 0.12)',
     motto: 'Высокая конверсия в готовые арт-продукты',
     badge: 'Арт-результат',
     description: 'Инкубаторы полного цикла: почти каждый участник создает реальную работу или прототип.',
   },
   3: {
     id: 3,
+    index: '04',
+    code: 'OPEN',
     name: 'Открытые бесплатные площадки',
     shortName: 'Городские хабы',
     color: '#f59e0b',
-    glow: 'rgba(245, 158, 11, 0.15)',
-    icon: '🌟',
+    glow: 'rgba(245, 158, 11, 0.12)',
     motto: 'Социальная миссия и городские сообщества',
     badge: 'Социальные хабы',
     description: 'Пространства с нулевым барьером входа и бесплатными сервисами для творческих команд.',
   },
   4: {
     id: 4,
+    index: '05',
+    code: 'ACAD',
     name: 'Профессиональные академии',
     shortName: 'Академии',
     color: '#8b5cf6',
-    glow: 'rgba(139, 92, 246, 0.15)',
-    icon: '🎓',
+    glow: 'rgba(139, 92, 246, 0.12)',
     motto: 'Глубокие программы ДПО и монетизация',
     badge: 'Проф. ДПО',
     description: 'Длительные программы повышения квалификации, переподготовка и стабильная платная модель.',
@@ -122,10 +127,10 @@ export const CLUSTER_METAS = {
 
 export function getClusterMeta(idOrName) {
   if (typeof idOrName === 'number') {
-    return CLUSTER_METAS[idOrName] || { name: `Кластер ${idOrName}`, color: '#3b82f6', icon: '🏷️' }
+    return CLUSTER_METAS[idOrName] || { name: `Кластер ${idOrName}`, color: '#3b82f6', index: '00', code: 'CLS' }
   }
   const byName = Object.values(CLUSTER_METAS).find((c) => c.name === idOrName)
-  return byName || { name: String(idOrName), color: '#3b82f6', icon: '🏷️' }
+  return byName || { name: String(idOrName), color: '#3b82f6', index: '00', code: 'CLS' }
 }
 
 export function percent(value, decimals = 0) {

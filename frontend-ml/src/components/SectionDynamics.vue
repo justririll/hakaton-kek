@@ -27,7 +27,7 @@ const sortedOrgs = computed(() =>
 /** Данные траектории динамики для 4 метрик */
 const METRICS_CONFIG = {
   audience: {
-    label: "Посещаемость (чел.)",
+    label: "Посещаемость",
     unit: "чел.",
     base2025: 3850,
     q1: 1150,
@@ -39,7 +39,7 @@ const METRICS_CONFIG = {
     growthText: "+18.4% к 2025 г.",
   },
   formats: {
-    label: "Проведено мероприятий",
+    label: "Мероприятия",
     unit: "ед.",
     base2025: 279,
     q1: 85,
@@ -51,7 +51,7 @@ const METRICS_CONFIG = {
     growthText: "+21.2% к 2025 г.",
   },
   products: {
-    label: "Созданные продукты",
+    label: "Арт-продукты",
     unit: "раб.",
     base2025: 1420,
     q1: 510,
@@ -63,7 +63,7 @@ const METRICS_CONFIG = {
     growthText: "+46.1% к 2025 г.",
   },
   revenue: {
-    label: "Доход от платных услуг",
+    label: "Платные услуги",
     unit: "₽",
     base2025: 19800000,
     q1: 6400000,
@@ -123,9 +123,9 @@ const trajectoryChartOption = computed(() => {
         name: "Фактическая динамика",
         type: "line",
         smooth: true,
-        symbolSize: 8,
+        symbolSize: 7,
         itemStyle: { color: p.accent },
-        lineStyle: { width: 3, color: p.accent },
+        lineStyle: { width: 2.5, color: p.accent },
         areaStyle: {
           color: {
             type: "linear",
@@ -134,7 +134,7 @@ const trajectoryChartOption = computed(() => {
             x2: 0,
             y2: 1,
             colorStops: [
-              { offset: 0, color: p.accent + "55" },
+              { offset: 0, color: p.accent + "40" },
               { offset: 1, color: p.accent + "05" },
             ],
           },
@@ -158,9 +158,9 @@ const trajectoryChartOption = computed(() => {
         type: "line",
         smooth: true,
         symbol: "circle",
-        symbolSize: 10,
+        symbolSize: 8,
         itemStyle: { color: "#10b981" },
-        lineStyle: { width: 2.5, type: "dashed", color: "#10b981" },
+        lineStyle: { width: 2, type: "dashed", color: "#10b981" },
         data: [null, null, null, cfg.q3, cfg.q4Forecast],
       },
     ],
@@ -176,12 +176,12 @@ const mixOption = computed(() => {
     legend: {
       top: 0,
       left: 0,
-      itemWidth: 12,
-      itemHeight: 12,
-      itemGap: 16,
+      itemWidth: 10,
+      itemHeight: 10,
+      itemGap: 14,
       textStyle: { color: p.textSecondary, fontSize: 12 },
     },
-    grid: { left: 8, right: 16, top: 38, bottom: 8, containLabel: true },
+    grid: { left: 8, right: 16, top: 36, bottom: 8, containLabel: true },
     tooltip: { ...baseOption().tooltip, trigger: "axis", axisPointer: { type: "shadow" } },
     xAxis: { type: "value", ...axisStyle(), name: "чел.", nameTextStyle: { color: p.muted, fontSize: 11 } },
     yAxis: {
@@ -195,7 +195,7 @@ const mixOption = computed(() => {
       name: channel.label,
       type: "bar",
       stack: "audience",
-      barMaxWidth: 16,
+      barMaxWidth: 15,
       itemStyle: { color: p.series[index % p.series.length], borderColor: p.surface, borderWidth: 1.5 },
       data: rows.map((r) => r[`audience_${channel.key}`]),
     })),
@@ -222,9 +222,9 @@ const donutFormatOption = computed(() => {
       {
         name: "Формат",
         type: "pie",
-        radius: ["40%", "68%"],
+        radius: ["42%", "68%"],
         center: ["50%", "45%"],
-        itemStyle: { borderRadius: 8, borderColor: p.surface, borderWidth: 2 },
+        itemStyle: { borderRadius: 6, borderColor: p.surface, borderWidth: 2 },
         label: {
           show: true,
           position: "outside",
@@ -258,7 +258,7 @@ const planOption = computed(() => {
         return `<b>${row.short_name}</b><br/>
                 Выполнение плана: <b>${Math.round(row.completion * 100)}%</b><br/>
                 Факт: <b>${row.fact_ytd} ед.</b> из <b>${row.target_2026} ед.</b><br/>
-                Статус: <span style="color:${PLAN_STATUS[row.status]?.color}">${row.status}</span>`
+                Статус: <b>${row.status}</b>`
       },
     },
     xAxis: {
@@ -277,7 +277,7 @@ const planOption = computed(() => {
       {
         name: "Выполнение цели года",
         type: "bar",
-        barMaxWidth: 15,
+        barMaxWidth: 14,
         itemStyle: {
           color: (params) => {
             const row = rows[params.dataIndex]
@@ -289,7 +289,7 @@ const planOption = computed(() => {
         markLine: {
           silent: true,
           symbol: "none",
-          label: { formatter: "100% цель", color: p.muted, fontSize: 11 },
+          label: { formatter: "100% норма", color: p.muted, fontSize: 11 },
           lineStyle: { color: p.axis, width: 1.5, type: "solid" },
           data: [{ xAxis: 1 }],
         },
@@ -301,14 +301,13 @@ const planOption = computed(() => {
 
 <template>
   <div class="stack">
-    <!-- Понятное объяснение для любого зрителя -->
+    <!-- Понятное объяснение -->
     <div class="takeaway-box">
-      <span class="takeaway-icon">💡</span>
       <div class="takeaway-text">
-        <strong>Главный вывод раздела:</strong>
-        Сеть показывает уверенный темп прироста (+18.4% по аудитории и +46.1% по готовым творческим работам).
-        Однако <b>7 из 20 учреждений</b> находятся в зоне риска срыва годового плана из-за отставания графика во II квартале.
-        Для закрытия плана в IV квартале им потребуется ускорить темп проведения мероприятий в 1.8 раза.
+        <strong>Вывод раздела:</strong>
+        Сеть показывает уверенный темп (+18.4% по аудитории и +46.1% по готовым арт-работам к прошлому году).
+        При этом <b>7 из 20 учреждений</b> находятся в зоне риска срыва годового плана из-за отставания во II квартале.
+        Для выполнения плана в IV квартале им необходимо ускорить частоту проведения мероприятий в 1.8 раза.
       </div>
     </div>
 
@@ -317,7 +316,7 @@ const planOption = computed(() => {
       <StatTile
         label="Посещаемость за 9 мес."
         :value="compact(overview.audience_total)"
-        note="человек (+18.4% к факту 2025)"
+        note="человек (+18.4% к 2025 г.)"
         hero
       />
       <StatTile
@@ -328,7 +327,7 @@ const planOption = computed(() => {
       <StatTile
         label="Готовых арт-продуктов"
         :value="compact(overview.products_total)"
-        :note="`в среднем ${overview.median_product_rate} работ на 1 человека`"
+        :note="`в среднем ${overview.median_product_rate} работ на человека`"
       />
       <StatTile
         label="Заработано на услугах"
@@ -336,14 +335,14 @@ const planOption = computed(() => {
         note="доход от прототипирования и ДПО"
       />
       <StatTile
-        label="Средняя наполняемость"
+        label="Средняя группа"
         :value="`${overview.median_audience_per_format} чел.`"
-        note="средний размер группы на встрече"
+        note="наполняемость на одном мероприятии"
       />
       <StatTile
         label="План года под риском"
         :value="`${overview.plan_at_risk} из ${overview.organizations}`"
-        note="отстают от равномерного темпа 75%"
+        note="отстают от равномерного графика 75%"
       />
     </div>
 
@@ -351,9 +350,9 @@ const planOption = computed(() => {
     <div class="card">
       <div class="section-header-row">
         <div>
-          <h2>График динамики сети (2025 → 2026 + прогноз IV кв.)</h2>
+          <h2>Динамика показателей сети (2025 → 2026 + прогноз IV кв.)</h2>
           <p class="muted sub">
-            Сравнение базового уровня 2025 года, поквартальной траектории 2026 года и ожидаемого выхода на конец года.
+            Сравнение базового уровня 2025 года, поквартальной траектории и ожидаемого выхода на конец года.
           </p>
         </div>
         <div class="metric-tabs">
@@ -374,11 +373,11 @@ const planOption = computed(() => {
           Факт 9 месяцев: <b>{{ METRICS_CONFIG[activeMetric].formatter(METRICS_CONFIG[activeMetric].q3) }}</b>
         </span>
         <span class="muted">
-          Ожидание на конец года (Run-rate): <b>{{ METRICS_CONFIG[activeMetric].formatter(METRICS_CONFIG[activeMetric].q4Forecast) }}</b>
+          Прогноз года (Run-rate): <b>{{ METRICS_CONFIG[activeMetric].formatter(METRICS_CONFIG[activeMetric].q4Forecast) }}</b>
         </span>
       </div>
 
-      <EChart :option="trajectoryChartOption" height="340px" />
+      <EChart :option="trajectoryChartOption" height="320px" />
     </div>
 
     <!-- Две колонки: Состав аудитории и Доли форматов -->
@@ -394,7 +393,7 @@ const planOption = computed(() => {
       <div class="card flex-card">
         <h2>Доли форматов в аудитории сети</h2>
         <p class="muted sub">
-          Какие форматы привлекают наибольший объем посетителей.
+          Какие форматы привлекают наибольший объем участников.
         </p>
         <EChart :option="donutFormatOption" height="260px" />
 
@@ -428,15 +427,15 @@ const planOption = computed(() => {
     <div class="card">
       <div class="section-header-row">
         <div>
-          <h2>Контроль выполнения годового плана по организациям</h2>
+          <h2>Выполнение годового плана по организациям</h2>
           <p class="muted sub">
-            Цель — прирост числа мероприятий к 2025 году. Порог 75% за 9 месяцев отделяет график нормы от отставания.
+            Цель — прирост числа мероприятий к 2025 году. Порог 75% за 9 месяцев отделяет норму от отставания.
           </p>
         </div>
         <div class="status-legend">
-          <span class="badge badge-good">● Опережение / В графике</span>
-          <span class="badge badge-warning">▲ Зона риска</span>
-          <span class="badge badge-danger">■ Срыв плана</span>
+          <span class="badge badge-good">Опережение / В графике</span>
+          <span class="badge badge-warning">Зона риска</span>
+          <span class="badge badge-danger">Срыв плана</span>
         </div>
       </div>
       <EChart :option="planOption" height="480px" />
@@ -460,9 +459,9 @@ const planOption = computed(() => {
   align-items: flex-start;
   flex-wrap: wrap;
   gap: 16px;
-  margin-bottom: 16px;
+  margin-bottom: 14px;
 }
-.metric-tabs { display: flex; flex-wrap: wrap; gap: 6px; }
+.metric-tabs { display: flex; flex-wrap: wrap; gap: 4px; }
 .metric-meta-bar {
   display: flex;
   align-items: center;
@@ -494,7 +493,7 @@ const planOption = computed(() => {
   padding-top: 14px;
 }
 .format-item { display: flex; align-items: flex-start; gap: 10px; font-size: 12px; }
-.format-dot { width: 10px; height: 10px; border-radius: 50%; margin-top: 4px; flex-shrink: 0; }
+.format-dot { width: 8px; height: 8px; border-radius: 50%; margin-top: 5px; flex-shrink: 0; }
 
-.status-legend { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.status-legend { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
 </style>

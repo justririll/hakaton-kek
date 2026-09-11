@@ -1,5 +1,6 @@
 <script setup>
 import { computed, onMounted, onBeforeUnmount } from "vue"
+import Icon from "./Icon.vue"
 import EChart from "./EChart.vue"
 import { compact, money, percent, PLAN_STATUS, getClusterMeta, palette, baseOption, axisStyle } from "../theme"
 
@@ -55,7 +56,7 @@ const formatChartOption = computed(() => {
         avoidLabelOverlap: false,
         itemStyle: { borderRadius: 6, borderColor: p.surface, borderWidth: 2 },
         label: { show: false },
-        emphasis: { label: { show: true, fontSize: 13, fontWeight: "bold" } },
+        emphasis: { label: { show: true, fontSize: 12, fontWeight: "bold" } },
         data,
       },
     ],
@@ -76,13 +77,15 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown))
       <div class="modal-header">
         <div class="header-left">
           <div class="cluster-badge" :style="{ backgroundColor: clusterMeta?.glow, color: clusterMeta?.color }">
-            <span>{{ clusterMeta?.icon }}</span>
+            <span class="cluster-code">{{ clusterMeta?.code }}</span>
             <span>{{ clusterMeta?.name }}</span>
           </div>
           <h2>{{ org.short_name }}</h2>
           <p class="muted org-fullname">{{ org.full_name }}</p>
         </div>
-        <button class="close-btn" @click="emit('close')">✕</button>
+        <button class="close-btn" @click="emit('close')" title="Закрыть">
+          <Icon name="x" :size="16" />
+        </button>
       </div>
 
       <div class="modal-body">
@@ -99,7 +102,7 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown))
             <small class="muted">{{ org.audience_per_format?.toFixed(1) }} чел./событие</small>
           </div>
           <div class="stat-card">
-            <span class="label">Творческих продуктов</span>
+            <span class="label">Арт-продуктов</span>
             <strong class="value">{{ compact(org.products_total) }}</strong>
             <small class="muted">{{ org.product_rate?.toFixed(2) }} работ/чел.</small>
           </div>
@@ -128,7 +131,7 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown))
                 'badge-neutral': orgPlan.status === 'без базы',
               }"
             >
-              {{ PLAN_STATUS[orgPlan.status]?.icon }} {{ orgPlan.status }}
+              {{ orgPlan.status }}
             </span>
           </div>
 
@@ -143,8 +146,8 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown))
           </div>
           <div class="plan-meta">
             <span>Выполнено: <b>{{ percent(orgPlan.completion) }}</b></span>
-            <span>Прогноз на конец года: <b>{{ orgPlan.run_rate_forecast }} ед.</b></span>
-            <span>Требуется в Q4: <b>{{ orgPlan.required_remaining }} ед.</b> ({{ orgPlan.required_monthly_rate }} в мес.)</span>
+            <span>Прогноз года: <b>{{ orgPlan.run_rate_forecast }} ед.</b></span>
+            <span>Требуется в IV кв.: <b>{{ orgPlan.required_remaining }} ед.</b> ({{ orgPlan.required_monthly_rate }} в мес.)</span>
           </div>
         </div>
 
@@ -156,14 +159,14 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown))
           </div>
 
           <div class="card mini-card">
-            <h4>Соседи по архетипу «{{ clusterMeta?.name }}»</h4>
-            <p class="muted sub-text">С ними центр сравнивается при расчете резервов:</p>
+            <h4>Соседи по модели «{{ clusterMeta?.name }}»</h4>
+            <p class="muted sub-text">С ними центр сопоставляется при расчёте резервов:</p>
             <div class="peers-list">
               <div v-for="peer in peers" :key="peer.org_id" class="peer-row">
                 <span class="peer-name">{{ peer.short_name }}</span>
                 <span class="peer-stat">{{ compact(peer.audience_total) }} чел.</span>
               </div>
-              <p v-if="!peers.length" class="muted">В этом кластере нет других центров</p>
+              <p v-if="!peers.length" class="muted">В данном архетипе нет других центров</p>
             </div>
           </div>
         </div>
@@ -171,7 +174,7 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown))
         <!-- Персональные рекомендации для центра -->
         <div class="recommendations-section">
           <h3>Рекомендации по программированию мероприятий ({{ orgRecs.length }})</h3>
-          <p class="muted">Конкретные меры, рассчитанные на основе лучших практик похожих центров:</p>
+          <p class="muted">Меры, рассчитанные на основе практик лучших центров того же архетипа:</p>
 
           <div class="rec-list">
             <div v-for="rec in orgRecs" :key="rec.rec_id" class="rec-item">
@@ -183,9 +186,9 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown))
                 </strong>
               </div>
               <p class="rec-action"><b>Действие:</b> {{ rec.action }}</p>
-              <p class="rec-rationale muted"><b>Почему сработает:</b> {{ rec.rationale }}</p>
+              <p class="rec-rationale muted"><b>Обоснование:</b> {{ rec.rationale }}</p>
             </div>
-            <p v-if="!orgRecs.length" class="muted">Для данного центра нет критических отклонений от эталона.</p>
+            <p v-if="!orgRecs.length" class="muted">Для данного центра нет критических отклонений от нормы архетипа.</p>
           </div>
         </div>
 
@@ -209,12 +212,13 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown))
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  font-size: 12px;
-  font-weight: 600;
-  padding: 4px 10px;
-  border-radius: 9999px;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 6px;
   width: fit-content;
 }
+.cluster-code { font-family: monospace; }
 
 .stats-grid {
   display: grid;
@@ -224,19 +228,19 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown))
 .stat-card {
   background: var(--raised);
   border: 1px solid var(--border);
-  border-radius: 12px;
+  border-radius: 10px;
   padding: 14px;
   display: flex;
   flex-direction: column;
   gap: 4px;
 }
-.stat-card .label { font-size: 12px; color: var(--muted); }
-.stat-card .value { font-size: 20px; font-weight: 700; color: var(--text-primary); }
+.stat-card .label { font-size: 11px; color: var(--muted); text-transform: uppercase; }
+.stat-card .value { font-size: 20px; font-weight: 700; color: var(--text-primary); font-variant-numeric: tabular-nums; }
 
 .plan-card {
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 14px;
+  border-radius: 12px;
   padding: 16px;
   display: flex;
   flex-direction: column;
@@ -244,7 +248,7 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown))
 }
 .plan-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
 .progress-track {
-  height: 8px;
+  height: 6px;
   background: var(--raised);
   border-radius: 999px;
   overflow: hidden;
@@ -269,14 +273,14 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown))
 }
 .mini-card { padding: 16px; }
 .sub-text { font-size: 12px; margin: 4px 0 10px; }
-.peers-list { display: flex; flex-direction: column; gap: 8px; max-height: 180px; overflow-y: auto; }
+.peers-list { display: flex; flex-direction: column; gap: 6px; max-height: 180px; overflow-y: auto; }
 .peer-row {
   display: flex;
   justify-content: space-between;
-  font-size: 13px;
+  font-size: 12px;
   padding: 6px 10px;
   background: var(--raised);
-  border-radius: 8px;
+  border-radius: 6px;
 }
 
 .recommendations-section { display: flex; flex-direction: column; gap: 10px; }
@@ -284,22 +288,22 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown))
 .rec-item {
   background: var(--surface);
   border: 1px solid var(--border);
-  border-left: 4px solid var(--accent);
-  border-radius: 10px;
-  padding: 14px;
+  border-left: 3px solid var(--accent);
+  border-radius: 8px;
+  padding: 12px 14px;
   display: flex;
   flex-direction: column;
   gap: 6px;
 }
 .rec-top { display: flex; justify-content: space-between; align-items: center; }
-.rec-impact { color: var(--success); font-weight: 600; font-size: 13px; }
+.rec-impact { color: var(--success); font-weight: 600; font-size: 13px; font-variant-numeric: tabular-nums; }
 .rec-action { font-size: 13px; color: var(--text-primary); }
 .rec-rationale { font-size: 12px; }
 
 .anomalies-section {
   background: var(--danger-wash);
-  border: 1px solid rgba(239, 68, 68, 0.3);
-  border-radius: 12px;
+  border: 1px solid rgba(239, 68, 68, 0.25);
+  border-radius: 10px;
   padding: 14px;
   display: flex;
   flex-direction: column;

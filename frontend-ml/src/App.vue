@@ -1,11 +1,12 @@
 <script setup>
 /**
  * Корневой экран платформы «Культурный пульс»:
- * Навигация по 7 ключевым разделам, быстрый выбор центров,
+ * Навигация по разделам, быстрый выбор центров,
  * экспресс-отчет для руководства и переключение тем.
  */
 import { onMounted, ref } from "vue"
 import { api } from "./api"
+import Icon from "./components/Icon.vue"
 import SectionStory from "./components/SectionStory.vue"
 import SectionDynamics from "./components/SectionDynamics.vue"
 import SectionFeedback from "./components/SectionFeedback.vue"
@@ -17,13 +18,13 @@ import OrgModal from "./components/OrgModal.vue"
 import ExecutiveSummaryModal from "./components/ExecutiveSummaryModal.vue"
 
 const SECTIONS = [
-  { key: "story", label: "Главное & Пульс", icon: "🌟" },
-  { key: "dynamics", label: "Посещаемость & Динамика", icon: "📈" },
-  { key: "feedback", label: "Обратная связь & Вовлеченность", icon: "💬" },
-  { key: "clusters", label: "Кластеризация аудитории", icon: "🎭" },
-  { key: "recommendations", label: "Рекомендации & Симулятор", icon: "⚡" },
-  { key: "organizations", label: "Центры культуры (20)", icon: "🏛️" },
-  { key: "quality", label: "Контроль качества", icon: "🛡️" },
+  { key: "story", label: "Главное", icon: "activity" },
+  { key: "dynamics", label: "Посещаемость и динамика", icon: "trending-up" },
+  { key: "feedback", label: "Обратная связь и вовлеченность", icon: "message-square" },
+  { key: "clusters", label: "Кластеризация аудитории", icon: "layers" },
+  { key: "recommendations", label: "Рекомендации и симулятор", icon: "zap" },
+  { key: "organizations", label: "Каталог центров", icon: "building" },
+  { key: "quality", label: "Контроль качества данных", icon: "shield-check" },
 ]
 
 const active = ref("story")
@@ -90,42 +91,47 @@ onMounted(async () => {
     <!-- Шапка платформы -->
     <header class="app-header">
       <div class="brand-block">
-        <div class="brand-logo">КП</div>
+        <div class="brand-logo">
+          <Icon name="activity" :size="20" />
+        </div>
         <div>
           <div class="title-row">
             <h1>Культурный пульс</h1>
             <span class="live-status">
               <span class="pulse-indicator" />
-              <span>20 центров сети онлайн</span>
+              <span>20 центров онлайн</span>
             </span>
           </div>
-          <p class="muted subtitle">Интеллектуальная аналитика и программирование мероприятий</p>
+          <p class="muted subtitle">Аналитика сети центров прототипирования и программирование мероприятий</p>
         </div>
       </div>
 
       <div class="header-actions">
         <!-- Быстрый выбор центра для перехода в досье -->
         <div v-if="data.organizations?.length" class="quick-org-selector">
+          <Icon name="search" :size="14" class="search-icon-inside" />
           <select @change="(e) => { if (e.target.value) { openOrg(e.target.value); e.target.value = ''; } }">
-            <option value="">Быстрый поиск центра...</option>
+            <option value="">Найти центр...</option>
             <option v-for="org in data.organizations" :key="org.org_id" :value="org.org_id">
               {{ org.short_name }}
             </option>
           </select>
         </div>
 
-        <!-- Экспресс-отчет для руководства / жюри -->
+        <!-- Экспресс-отчет для руководства -->
         <button
           v-if="!loading && !error"
           class="btn-report"
           @click="showSummaryModal = true"
         >
-          📄 Экспресс-отчёт
+          <Icon name="file-text" :size="14" />
+          <span>Экспресс-отчёт</span>
         </button>
 
         <!-- Переключатель темы -->
         <button class="theme-btn" @click="cycleTheme" title="Сменить тему оформления">
-          {{ { system: "◐ Система", light: "☀ Светлая", dark: "☾ Тёмная" }[theme] }}
+          <Icon :name="theme === 'dark' ? 'moon' : 'sun'" :size="14" />
+          <span>{{ { system: "Авто", light: "Светлая", dark: "Тёмная" }[theme] }}</span>
         </button>
       </div>
     </header>
@@ -139,7 +145,7 @@ onMounted(async () => {
         class="nav-tab"
         @click="active = section.key"
       >
-        <span class="tab-icon">{{ section.icon }}</span>
+        <Icon :name="section.icon" :size="15" />
         <span>{{ section.label }}</span>
       </button>
     </nav>
@@ -226,11 +232,11 @@ onMounted(async () => {
     <footer class="app-footer">
       <div class="footer-content muted">
         <div>
-          Источник: ежеквартальная отчётность по госпрограмме «Развитие культуры» (Формы 1 и 2).
+          Источник: ежеквартальная ведомственная отчётность (Формы 1 и 2).
           Охват: {{ data.overview?.organizations || 20 }} организаций.
         </div>
         <div>
-          Полный аналитический конвейер пересчитан за {{ data.overview?.build_seconds || "—" }}&nbsp;с.
+          Пересчёт конвейера моделей: {{ data.overview?.build_seconds || "—" }}&nbsp;с.
         </div>
       </div>
     </footer>
@@ -277,20 +283,17 @@ onMounted(async () => {
 }
 .brand-block { display: flex; gap: 14px; align-items: center; }
 .brand-logo {
-  width: 44px;
-  height: 44px;
-  border-radius: 12px;
-  background: linear-gradient(135deg, var(--accent) 0%, #1d4ed8 100%);
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  background: var(--accent);
   color: #ffffff;
   display: grid;
   place-items: center;
-  font-weight: 800;
-  font-size: 16px;
-  letter-spacing: -0.02em;
-  box-shadow: 0 4px 12px var(--accent-glow);
+  box-shadow: 0 2px 10px var(--accent-glow);
 }
 .title-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
-.title-row h1 { font-size: 20px; font-weight: 700; }
+.title-row h1 { font-size: 20px; font-weight: 700; letter-spacing: -0.02em; }
 .live-status {
   display: inline-flex;
   align-items: center;
@@ -299,7 +302,7 @@ onMounted(async () => {
   font-weight: 600;
   color: var(--success);
   background: var(--success-wash);
-  padding: 2px 8px;
+  padding: 3px 8px;
   border-radius: 999px;
 }
 .subtitle { font-size: 12px; margin-top: 2px; }
@@ -310,44 +313,57 @@ onMounted(async () => {
   gap: 10px;
   flex-wrap: wrap;
 }
+.quick-org-selector {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+.search-icon-inside {
+  position: absolute;
+  left: 10px;
+  color: var(--muted);
+  pointer-events: none;
+}
 .quick-org-selector select {
   font-size: 13px;
-  padding: 6px 12px;
+  padding: 7px 12px 7px 30px;
   min-width: 220px;
 }
 .btn-report {
   background: var(--accent-wash);
   color: var(--accent);
-  border: 1px solid rgba(59, 130, 246, 0.3);
+  border: 1px solid rgba(59, 130, 246, 0.25);
   font-weight: 600;
   font-size: 13px;
+  gap: 6px;
 }
 .btn-report:hover {
   background: var(--accent);
   color: #ffffff;
 }
-.theme-btn { font-size: 12px; white-space: nowrap; }
+.theme-btn { font-size: 12px; white-space: nowrap; gap: 6px; }
 
 .main-nav {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
+  gap: 4px;
   margin: 22px 0 26px;
-  padding: 6px;
+  padding: 4px;
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 14px;
+  border-radius: 12px;
   box-shadow: var(--shadow-sm);
   overflow-x: auto;
 }
 .nav-tab {
   border: 1px solid transparent;
-  border-radius: 10px;
+  border-radius: 8px;
   font-size: 13px;
   font-weight: 600;
   padding: 8px 14px;
   color: var(--text-secondary);
   white-space: nowrap;
+  gap: 7px;
 }
 .nav-tab:hover {
   color: var(--text-primary);
@@ -357,9 +373,8 @@ onMounted(async () => {
   background: var(--accent);
   color: #ffffff;
   border-color: var(--accent);
-  box-shadow: 0 2px 10px var(--accent-glow);
+  box-shadow: 0 2px 8px var(--accent-glow);
 }
-.tab-icon { font-size: 15px; }
 
 .state-box {
   padding: 90px 20px;
@@ -370,8 +385,8 @@ onMounted(async () => {
   gap: 16px;
 }
 .spinner {
-  width: 36px;
-  height: 36px;
+  width: 34px;
+  height: 34px;
   border: 3px solid var(--border);
   border-top-color: var(--accent);
   border-radius: 50%;

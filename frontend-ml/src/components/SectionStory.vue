@@ -1,10 +1,11 @@
 <script setup>
 /**
- * Главный экран «Главное & Пульс»:
+ * Главный экран «Главное»:
  * Результат работы платформы в людях, деньгах и творческих продуктах.
- * Максимальная понятность для любого зрителя за одну минуту.
+ * Исключительная ясность и лаконичность.
  */
 import { computed } from "vue"
+import Icon from "./Icon.vue"
 import Disclosure from "./Disclosure.vue"
 import { compact, money, getClusterMeta } from "../theme"
 
@@ -33,7 +34,7 @@ const highlights = computed(() => {
     cards.push({
       tag: "Упущенный результат",
       badgeClass: "badge-warning",
-      title: `${conversion.org_name}: людей много, продуктов мало`,
+      title: `${conversion.org_name}: высокий трафик при низкой конверсии`,
       body:
         `Через центр прошли ${compact(conversion.evidence?.audience)} человек — ` +
         `высокий показатель в сети. Но доводит работу до готового арт-продукта лишь ` +
@@ -50,13 +51,13 @@ const highlights = computed(() => {
     cards.push({
       tag: "Аномалия в отчёте",
       badgeClass: "badge-danger",
-      title: `${error.org_name}: цифры спорят друг с другом`,
+      title: `${error.org_name}: внутреннее противоречие цифр`,
       body:
         "В отчёте указано 69 проведённых мероприятий и всего 21 обученный участник — меньше " +
-        "одного человека на событие. Три независимые проверки алгоритма указали на опечатку " +
-        "до того, как по этим цифрам распределили субсидии.",
+        "одного человека на событие. Автоматический контроль качества выявил опечатку " +
+        "до принятия управленческих решений.",
       metric: "Выявлено автоматически",
-      note: "контроль качества данных на входе",
+      note: "верификация входного слоя данных",
       orgId: error.org_id,
     })
   }
@@ -68,8 +69,8 @@ const highlights = computed(() => {
       badgeClass: "badge-good",
       title: `${monetize.count} центров могут монетизировать услуги`,
       body:
-        "Ряд центров оказывает уникальные услуги прототипирования бесплатно, тогда как " +
-        "соседи по архетипу уже сформировали стабильный платный пул коммерческих заказов " +
+        "Ряд центров оказывает профильные услуги бесплатно, тогда как " +
+        "соседи по архетипу уже сформировали устойчивый портфель коммерческих заказов " +
         "и специализированных программ ДПО.",
       metric: `+${money(monetize.total)}`,
       note: "дополнительного объёма услуг при той же инфраструктуре",
@@ -83,7 +84,7 @@ const highlights = computed(() => {
 
 <template>
   <div class="stack">
-    <!-- Hero Блок с акцентом на эффект -->
+    <!-- Hero блок -->
     <section class="card hero">
       <div class="hero-topline">
         <div class="live-tag">
@@ -94,12 +95,12 @@ const highlights = computed(() => {
       </div>
 
       <h1 class="headline">
-        Интеллектуальная аналитика сети:<br />
-        <span class="accent-text">{{ overview.recommendations?.total }} конкретных решений</span> на основе данных
+        Аналитическая платформа сети:<br />
+        <span class="accent-text">{{ overview.recommendations?.total }} конкретных решений</span> по программированию
       </h1>
 
       <p class="lede">
-        Платформа автоматически агрегирует ведомственную отчётность центров культуры,
+        Платформа агрегирует ведомственную отчётность центров культуры,
         строит траектории динамики, группирует организации в 5 аудиторных архетипов
         и рассчитывает доказательный резерв роста без увеличения госбюджета.
       </p>
@@ -109,7 +110,7 @@ const highlights = computed(() => {
         <div v-if="impact.participants" class="impact-card">
           <div class="impact-val">+{{ compact(impact.participants.total) }}</div>
           <div class="impact-lbl">участников обучения</div>
-          <div class="impact-sub">+40.3% к текущему охвату сети</div>
+          <div class="impact-sub">+40.3% к текущему объему сети</div>
         </div>
         <div v-if="impact.products" class="impact-card">
           <div class="impact-val">+{{ compact(impact.products.total) }}</div>
@@ -123,34 +124,39 @@ const highlights = computed(() => {
         </div>
       </div>
 
-      <p class="hero-footnote muted">
-        💡 Этот резерв достижим прямо сейчас — за счёт оптимизации расписания, наполняемости существующих групп и внедрения проектных треков.
-      </p>
+      <div class="takeaway-box">
+        <div class="takeaway-icon-dot" />
+        <div class="takeaway-text">
+          <strong>Вывод:</strong>
+          Резерв достигается за счёт выравнивания наполняемости групп, перераспределения расписания
+          и добавления проектных воркшопов на существующих площадях.
+        </div>
+      </div>
     </section>
 
     <!-- 3 Шага работы платформы -->
     <section class="card">
-      <h2>Как работает система (в трёх шагах)</h2>
+      <h2>Методология конвейера данных</h2>
       <div class="steps-grid">
         <article class="step-card">
-          <div class="step-badge">Шаг 1</div>
-          <h3>Сбор и очистка отчётов</h3>
+          <div class="step-num-code">01 / СБОР</div>
+          <h3>Сбор и стандартизация отчётов</h3>
           <p class="muted">
-            {{ overview.organizations }} книг Excel в разных форматах приводятся к единой матрице из 28 показателей.
+            {{ overview.organizations }} книг Excel в разнородных шаблонах приводятся к единой матрице из 28 показателей.
             Автоматический аудит устраняет расхождения единиц измерения (рубли vs тыс. рублей) и находит аномалии.
           </p>
         </article>
         <article class="step-card">
-          <div class="step-badge">Шаг 2</div>
-          <h3>Кластеризация аудитории</h3>
+          <div class="step-num-code">02 / КЛАСТЕРЫ</div>
+          <h3>Кластеризация аудиторных моделей</h3>
           <p class="muted">
             Алгоритм выделил <b>{{ clusters.k }} устойчивых архетипов</b>.
             Каждое учреждение сравнивается только с равными — институты с институтами, камерные мастерские с мастерскими.
           </p>
         </article>
         <article class="step-card">
-          <div class="step-badge">Шаг 3</div>
-          <h3>Расчёт персональных решений</h3>
+          <div class="step-num-code">03 / ЭФФЕКТ</div>
+          <h3>Расчёт доказательных решений</h3>
           <p class="muted">
             Разрыв между центром и медианой его архетипа оцифровывается в понятные управленческие действия
             с точной оценкой эффекта в людях, продуктах и рублях.
@@ -162,8 +168,8 @@ const highlights = computed(() => {
     <!-- Ключевые находки системы -->
     <section>
       <div class="section-title-wrap">
-        <h2>Что система нашла в данных</h2>
-        <p class="muted">Ключевые инсайты, выявленные алгоритмами в отчётах сети:</p>
+        <h2>Ключевые инсайты по сети</h2>
+        <p class="muted">Факты, выявленные алгоритмами в отчётности:</p>
       </div>
 
       <div class="highlights-grid">
@@ -175,7 +181,7 @@ const highlights = computed(() => {
         >
           <div class="hl-top">
             <span class="badge" :class="card.badgeClass">{{ card.tag }}</span>
-            <span v-if="card.orgId" class="view-dossier-small">Открыть досье →</span>
+            <span v-if="card.orgId" class="view-dossier-small">Досье →</span>
           </div>
           <h3 class="hl-title">{{ card.title }}</h3>
           <p class="hl-body muted">{{ card.body }}</p>
@@ -191,13 +197,14 @@ const highlights = computed(() => {
     <section class="card archetypes-banner">
       <div class="arch-banner-header">
         <div>
-          <h2>5 аудиторных моделей работы сети</h2>
+          <h2>5 аудиторных моделей работы</h2>
           <p class="muted">
-            Основа справедливого сравнения и взаимного бенчмаркинга:
+            Основа справедливого сопоставления и бенчмаркинга:
           </p>
         </div>
         <button class="btn-primary" @click="emit('select-tab', 'clusters')">
-          Изучить кластеры →
+          <span>Смотреть архетипы</span>
+          <Icon name="arrow-right" :size="13" />
         </button>
       </div>
 
@@ -208,7 +215,9 @@ const highlights = computed(() => {
           class="arch-chip-item"
           @click="emit('select-tab', 'clusters')"
         >
-          <span class="chip-icon">{{ getClusterMeta(p.cluster_id).icon }}</span>
+          <div class="chip-index" :style="{ color: getClusterMeta(p.cluster_id).color }">
+            {{ getClusterMeta(p.cluster_id).index }}
+          </div>
           <div class="chip-texts">
             <strong>{{ p.name }}</strong>
             <small class="muted">{{ p.size }} центров • {{ getClusterMeta(p.cluster_id).badge }}</small>
@@ -219,10 +228,12 @@ const highlights = computed(() => {
 
     <!-- Верификация и математическое доверие -->
     <section class="card">
-      <h2>Можно ли доверять этим выводам?</h2>
+      <h2>Верификация математической модели</h2>
       <div class="trust-grid">
         <div class="trust-cell">
-          <div class="check-icon">✓</div>
+          <div class="trust-icon-box">
+            <Icon name="check" :size="14" />
+          </div>
           <div>
             <strong>Разбиение на модели статистически доказано</strong>
             <p class="muted">
@@ -232,21 +243,25 @@ const highlights = computed(() => {
           </div>
         </div>
         <div class="trust-cell">
-          <div class="check-icon">✓</div>
+          <div class="trust-icon-box">
+            <Icon name="check" :size="14" />
+          </div>
           <div>
             <strong>Устойчивость выводов к исключению объектов</strong>
             <p class="muted">
               При поочередном удалении каждого центра {{ Math.round(validation.recommendations?.stable_share * 100) }}%
-              рекомендаций остаются абсолютно стабильными.
+              рекомендаций остаются стабильными.
             </p>
           </div>
         </div>
         <div class="trust-cell">
-          <div class="check-icon">✓</div>
+          <div class="trust-icon-box">
+            <Icon name="check" :size="14" />
+          </div>
           <div>
             <strong>100% реальные наблюдаемые данные</strong>
             <p class="muted">
-              Все метрики построены исключительно на первичных отчетах Форм 1 и 2 без выдуманных синтетических суррогатов.
+              Все метрики построены на первичных отчетах Форм 1 и 2 без выдуманных синтетических суррогатов.
             </p>
           </div>
         </div>
@@ -256,88 +271,91 @@ const highlights = computed(() => {
 </template>
 
 <style scoped>
-.stack { display: flex; flex-direction: column; gap: 28px; }
+.stack { display: flex; flex-direction: column; gap: 24px; }
 
 .hero {
-  padding: 36px 32px;
-  background: linear-gradient(135deg, var(--surface) 0%, var(--raised) 100%);
-  border: 1px solid rgba(59, 130, 246, 0.25);
-  box-shadow: 0 4px 25px var(--accent-glow);
+  padding: 32px 28px;
+  background: var(--surface);
+  border: 1px solid var(--border);
   display: flex;
   flex-direction: column;
   gap: 16px;
 }
 .hero-topline { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; }
-.live-tag { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; color: var(--text-secondary); }
+.live-tag { display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 600; color: var(--text-secondary); }
 
-.headline { font-size: 26px; font-weight: 800; line-height: 1.25; margin: 4px 0; }
+.headline { font-size: 24px; font-weight: 700; line-height: 1.25; margin: 4px 0; }
 .accent-text { color: var(--accent); }
-.lede { font-size: 15px; line-height: 1.6; color: var(--text-secondary); max-width: 900px; }
+.lede { font-size: 14px; line-height: 1.6; color: var(--text-secondary); max-width: 880px; }
 
 .impact-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 16px;
-  margin: 12px 0;
+  gap: 14px;
+  margin: 8px 0;
 }
 .impact-card {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 14px;
-  padding: 20px;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  box-shadow: var(--shadow);
-}
-.impact-val { font-size: 28px; font-weight: 800; color: var(--success); }
-.impact-lbl { font-size: 14px; font-weight: 600; color: var(--text-primary); }
-.impact-sub { font-size: 12px; color: var(--muted); }
-.hero-footnote { font-size: 13px; margin: 0; }
-
-.steps-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-  gap: 16px;
-  margin-top: 16px;
-}
-.step-card {
   background: var(--raised);
   border: 1px solid var(--border);
   border-radius: 12px;
   padding: 18px;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 4px;
 }
-.step-badge {
-  font-size: 11px;
-  font-weight: 700;
-  text-transform: uppercase;
-  color: var(--accent);
-  background: var(--accent-wash);
-  padding: 3px 8px;
-  border-radius: 6px;
-  width: fit-content;
+.impact-val { font-size: 26px; font-weight: 800; color: var(--success); font-variant-numeric: tabular-nums; }
+.impact-lbl { font-size: 13px; font-weight: 600; color: var(--text-primary); }
+.impact-sub { font-size: 12px; color: var(--muted); }
+
+.takeaway-icon-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent);
+  margin-top: 6px;
+  flex-shrink: 0;
 }
 
-.section-title-wrap { margin-bottom: 14px; }
+.steps-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 14px;
+  margin-top: 14px;
+}
+.step-card {
+  background: var(--raised);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.step-num-code {
+  font-size: 11px;
+  font-weight: 700;
+  font-family: monospace;
+  color: var(--accent);
+  letter-spacing: 0.05em;
+}
+
+.section-title-wrap { margin-bottom: 12px; }
 .highlights-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-  gap: 16px;
+  gap: 14px;
 }
 .highlight-card {
   display: flex;
   flex-direction: column;
   gap: 10px;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all 0.15s ease;
 }
 .highlight-card:hover { transform: translateY(-2px); border-color: var(--accent); }
 .hl-top { display: flex; justify-content: space-between; align-items: center; }
 .view-dossier-small { font-size: 11px; color: var(--accent); font-weight: 600; }
-.hl-title { font-size: 15px; font-weight: 700; margin: 0; }
+.hl-title { font-size: 14px; font-weight: 600; margin: 0; }
 .hl-body { font-size: 13px; line-height: 1.5; margin: 0; }
 .hl-bottom {
   display: flex;
@@ -347,7 +365,7 @@ const highlights = computed(() => {
   padding-top: 10px;
   border-top: 1px solid var(--border);
 }
-.hl-metric { font-size: 16px; color: var(--accent); }
+.hl-metric { font-size: 15px; color: var(--accent); font-weight: 700; }
 
 .arch-banner-header {
   display: flex;
@@ -355,26 +373,26 @@ const highlights = computed(() => {
   align-items: flex-start;
   flex-wrap: wrap;
   gap: 12px;
-  margin-bottom: 16px;
+  margin-bottom: 14px;
 }
 .arch-chips-row {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: 12px;
+  gap: 10px;
 }
 .arch-chip-item {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 12px;
+  padding: 10px 12px;
   background: var(--raised);
   border: 1px solid var(--border);
-  border-radius: 12px;
+  border-radius: 10px;
   cursor: pointer;
   transition: all 0.15s ease;
 }
 .arch-chip-item:hover { background: var(--accent-wash); border-color: var(--accent); }
-.chip-icon { font-size: 24px; line-height: 1; }
+.chip-index { font-size: 15px; font-weight: 800; font-family: monospace; }
 .chip-texts { display: flex; flex-direction: column; gap: 2px; }
 .chip-texts strong { font-size: 13px; color: var(--text-primary); }
 
@@ -389,19 +407,17 @@ const highlights = computed(() => {
   gap: 12px;
   align-items: flex-start;
 }
-.check-icon {
-  width: 24px;
-  height: 24px;
-  border-radius: 50%;
+.trust-icon-box {
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
   background: var(--success-wash);
   color: var(--success);
   display: grid;
   place-items: center;
-  font-weight: 700;
-  font-size: 13px;
   flex-shrink: 0;
   margin-top: 2px;
 }
-.trust-cell strong { font-size: 13px; color: var(--text-primary); display: block; margin-bottom: 4px; }
+.trust-cell strong { font-size: 13px; color: var(--text-primary); display: block; margin-bottom: 3px; }
 .trust-cell p { font-size: 12px; line-height: 1.5; margin: 0; }
 </style>

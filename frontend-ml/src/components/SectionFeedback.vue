@@ -1,8 +1,8 @@
 <script setup>
 /**
  * Раздел «Обратная связь & Вовлеченность»:
- * Комплексный анализ удовлетворенности аудитории, воронка вовлечения,
- * радар факторов качества и интерактивная лента отзывов участников.
+ * Анализ удовлетворенности аудитории, воронка вовлечения,
+ * радар факторов качества и структурированная лента отзывов.
  */
 import { computed, ref } from "vue"
 import EChart from "./EChart.vue"
@@ -33,7 +33,7 @@ const REVIEWS = ref([
     category: "equipment",
     categoryLabel: "Оборудование и мастерские",
     sentiment: "positive",
-    text: "Потрясающая мастерская 3D-моделирования и керамические печи! За 3 недели довела эскиз до готовой скульптуры. Кураторы дежурят даже на выходных.",
+    text: "Качественная мастерская 3D-моделирования и керамические печи. За 3 недели довела эскиз до готовой скульптуры. Кураторы дежурят в выходные дни.",
     date: "14 сен 2026",
   },
   {
@@ -44,7 +44,7 @@ const REVIEWS = ref([
     category: "schedule",
     categoryLabel: "Организация и расписание",
     sentiment: "warning",
-    text: "Оборудование в студии мирового уровня, но мест в группе было 25 на 15 рабочих станций. Приходилось работать по очереди. Нужно расширять вечерние слоты.",
+    text: "Оборудование в студии профессиональное, но мест в группе было 25 на 15 рабочих станций. Требуется расширение вечерних слотов.",
     date: "09 сен 2026",
   },
   {
@@ -55,7 +55,7 @@ const REVIEWS = ref([
     category: "mentors",
     categoryLabel: "Кураторы и эксперты",
     sentiment: "positive",
-    text: "Настоящие практики из индустрии кино. Наш короткий метр отобрали на фестиваль студенческого кино в Москве! Резидентура дала колоссальный толчок.",
+    text: "Практики из индустрии кино. Наш короткий метр отобрали на фестиваль студенческого кино в Москве. Резидентура дала колоссальный толчок.",
     date: "02 сен 2026",
   },
   {
@@ -66,7 +66,7 @@ const REVIEWS = ref([
     category: "mentors",
     categoryLabel: "Кураторы и эксперты",
     sentiment: "positive",
-    text: "Отличный модуль по сведению оркестровой музыки. Записали альбом студенческого ансамбля. Огромное спасибо звукорежиссёрам центра!",
+    text: "Отличный модуль по сведению оркестровой музыки. Записали альбом студенческого ансамбля. Высокий профессионализм звукорежиссёров центра.",
     date: "28 авг 2026",
   },
   {
@@ -77,7 +77,7 @@ const REVIEWS = ref([
     category: "schedule",
     categoryLabel: "Организация и расписание",
     sentiment: "warning",
-    text: "Мало времени на самостоятельную практику в коворкинге после занятий. Двери закрывают в 18:00, для работающих резидентов это неудобно.",
+    text: "Мало времени на самостоятельную практику в коворкинге после занятий. Центр закрывается в 18:00, для работающих резидентов это неудобно.",
     date: "21 авг 2026",
   },
   {
@@ -103,14 +103,14 @@ function submitReview() {
   }
   REVIEWS.value.unshift({
     id: Date.now(),
-    org: newOrg.value || "Студент сети",
+    org: newOrg.value || "Слушатель курса",
     author: "Посетитель центра",
     rating: Number(newRating.value),
     category: newCategory.value,
     categoryLabel: catNames[newCategory.value] || "Общее",
     sentiment: newRating.value >= 4 ? "positive" : "warning",
     text: newComment.value.trim(),
-    date: "Только что",
+    date: "Сегодня",
   })
   newComment.value = ""
   submittedNotice.value = true
@@ -128,13 +128,6 @@ const filteredReviews = computed(() => {
 /** Воронка вовлеченности участников */
 const funnelOption = computed(() => {
   const p = palette()
-  const stages = [
-    { value: 4193, name: "1. Прошли обучение (4 193 чел.)" },
-    { value: 3981, name: "2. Стали резидентами (3 981 чел., 95%)" },
-    { value: 2074, name: "3. Создали арт-продукт (2 074 раб., 50%)" },
-    { value: 768, name: "4. Освещены в СМИ (768 публ.)" },
-    { value: 78, name: "5. Федеральные выставки (78 выходов)" },
-  ]
 
   return {
     ...baseOption(),
@@ -143,16 +136,16 @@ const funnelOption = computed(() => {
       {
         name: "Воронка вовлеченности",
         type: "funnel",
-        left: "10%",
+        left: "8%",
         top: 20,
         bottom: 20,
-        width: "80%",
+        width: "84%",
         min: 0,
         max: 4200,
-        minSize: "18%",
+        minSize: "16%",
         maxSize: "100%",
         sort: "descending",
-        gap: 4,
+        gap: 3,
         label: {
           show: true,
           position: "inside",
@@ -168,16 +161,16 @@ const funnelOption = computed(() => {
         data: [
           { value: 4193, name: "Обучено: 4 193 чел.", itemStyle: { color: "#2563eb" } },
           { value: 3981, name: "Резиденты: 3 981 чел. (95%)", itemStyle: { color: "#3b82f6" } },
-          { value: 2074, name: "Создано продуктов: 2 074 (50%)", itemStyle: { color: "#10b981" } },
+          { value: 2074, name: "Арт-продукты: 2 074 раб. (50%)", itemStyle: { color: "#10b981" } },
           { value: 768, name: "Публикации в СМИ: 768", itemStyle: { color: "#f59e0b" } },
-          { value: 350, name: "Федеральные показы: 78", itemStyle: { color: "#ec4899" } },
+          { value: 350, name: "Федеральные показы: 78", itemStyle: { color: "#8b5cf6" } },
         ],
       },
     ],
   }
 })
 
-/** Радар ключевых факторов удовлетворенности */
+/** Радар факторов удовлетворенности */
 const satisfactionRadarOption = computed(() => {
   const p = palette()
   return {
@@ -208,7 +201,7 @@ const satisfactionRadarOption = computed(() => {
             name: "Средняя оценка сети",
             symbolSize: 6,
             itemStyle: { color: p.accent },
-            areaStyle: { color: p.accent + "33" },
+            areaStyle: { color: p.accent + "25" },
             lineStyle: { width: 2 },
           },
           {
@@ -227,13 +220,12 @@ const satisfactionRadarOption = computed(() => {
 
 <template>
   <div class="stack">
-    <!-- Понятное резюме -->
+    <!-- Резюме -->
     <div class="takeaway-box">
-      <span class="takeaway-icon">💬</span>
       <div class="takeaway-text">
-        <strong>Обратная связь и лояльность аудитории:</strong>
+        <strong>Обратная связь и удержание аудитории:</strong>
         Совокупный расчётный индекс удовлетворенности (CSAT Proxy) составляет <b>84.6%</b>.
-        Рекордные <b>94.9% участников</b> продолжают работать в центрах в качестве постоянных резидентов.
+        <b>94.9% участников</b> продолжают работать в центрах в качестве постоянных резидентов.
         Аудитория максимально лояльна качеству наставничества (4.9/5) и станочной базе (4.8/5),
         но 38% критических отзывов связаны с нехваткой вечернего времени для самостоятельной практики в мастерских.
       </div>
@@ -253,14 +245,14 @@ const satisfactionRadarOption = computed(() => {
         note="3 981 участник стали резидентами"
       />
       <StatTile
-        label="Конверсия в творческий продукт"
+        label="Конверсия в арт-продукт"
         value="49.5%"
         note="каждый второй создал готовую работу"
       />
       <StatTile
         label="Медийный охват результатов"
         :value="compact(overview.publications_total)"
-        note="публикаций в региональных и фед. СМИ"
+        note="публикаций в СМИ о проектах участников"
       />
     </div>
 
@@ -269,15 +261,15 @@ const satisfactionRadarOption = computed(() => {
       <div class="card">
         <h2>Воронка вовлечения: от визита к результату</h2>
         <p class="muted sub">
-          Как посетитель первичного курса превращается в создателя арт-продукта и медийного резидента.
+          Этапы конверсии: первичный курс → резидентство → готовый авторский продукт → федеральный PR.
         </p>
         <EChart :option="funnelOption" height="320px" />
       </div>
 
       <div class="card">
-        <h2>Радар оценки факторов удовлетворенности</h2>
+        <h2>Оценка факторов удовлетворенности аудитории</h2>
         <p class="muted sub">
-          Оценка ключевых аспектов взаимодействия участников с центрами (по шкале 1–5).
+          Оценка ключевых аспектов взаимодействия с центрами (шкала 1.0 – 5.0).
         </p>
         <EChart :option="satisfactionRadarOption" height="320px" />
       </div>
@@ -288,18 +280,18 @@ const satisfactionRadarOption = computed(() => {
       <div class="card feed-card">
         <div class="feed-header">
           <div>
-            <h2>Живой фидбек аудитории мероприятий</h2>
-            <p class="muted sub">Реальные кейсы участников творческих лабораторий и курсов.</p>
+            <h2>Отзывы и обратная связь участников</h2>
+            <p class="muted sub">Аналитика фидбека участников курсов и творческих лабораторий.</p>
           </div>
           <div class="filter-group">
             <button :class="{ active: activeSentiment === 'all' }" @click="activeSentiment = 'all'">
               Все ({{ REVIEWS.length }})
             </button>
             <button :class="{ active: activeSentiment === 'positive' }" @click="activeSentiment = 'positive'">
-              🟢 Позитивные
+              Положительные
             </button>
             <button :class="{ active: activeSentiment === 'warning' }" @click="activeSentiment = 'warning'">
-              🟡 Точки роста
+              Точки роста
             </button>
           </div>
         </div>
@@ -311,20 +303,20 @@ const satisfactionRadarOption = computed(() => {
                 <strong>{{ rev.author }}</strong>
                 <span class="muted org-chip">• {{ rev.org }}</span>
               </div>
-              <div class="rating-stars">
-                <span v-for="s in 5" :key="s" class="star" :class="{ filled: s <= rev.rating }">★</span>
+              <div class="rating-badge mono-nums">
+                {{ rev.rating }}.0 / 5.0
               </div>
             </div>
             <p class="rev-text">«{{ rev.text }}»</p>
             <div class="rev-meta">
-              <span class="badge badge-accent">{{ rev.categoryLabel }}</span>
+              <span class="badge badge-neutral">{{ rev.categoryLabel }}</span>
               <span class="muted date">{{ rev.date }}</span>
             </div>
           </div>
         </div>
       </div>
 
-      <!-- Виджет симуляции сбора обратной связи -->
+      <!-- Форма сбора фидбека -->
       <div class="card form-card">
         <h2>Добавить отзыв в мониторинг</h2>
         <p class="muted sub">Интеграция контура обратной связи мероприятий.</p>
@@ -341,7 +333,7 @@ const satisfactionRadarOption = computed(() => {
           </div>
 
           <div class="field">
-            <label>Оценка мероприятия (1-5 звезд)</label>
+            <label>Оценка мероприятия (баллы 1–5)</label>
             <div class="star-picker">
               <button
                 v-for="r in [1, 2, 3, 4, 5]"
@@ -351,7 +343,7 @@ const satisfactionRadarOption = computed(() => {
                 :class="{ active: newRating === r }"
                 @click="newRating = r"
               >
-                {{ r }} ★
+                {{ r }}.0
               </button>
             </div>
           </div>
@@ -371,7 +363,7 @@ const satisfactionRadarOption = computed(() => {
             <textarea
               v-model="newComment"
               rows="3"
-              placeholder="Что понравилось, а что стоит доработать..."
+              placeholder="Что понравилось, а что требует доработки..."
               required
             ></textarea>
           </div>
@@ -379,7 +371,7 @@ const satisfactionRadarOption = computed(() => {
           <button type="submit" class="btn-primary">Зафиксировать отзыв</button>
 
           <p v-if="submittedNotice" class="success-notice">
-            ✓ Отзыв успешно сохранён и учтён в интегральном показателе!
+            Отзыв зафиксирован в мониторинге качества.
           </p>
         </form>
       </div>
@@ -421,14 +413,14 @@ const satisfactionRadarOption = computed(() => {
   align-items: flex-start;
   flex-wrap: wrap;
   gap: 12px;
-  margin-bottom: 16px;
+  margin-bottom: 14px;
 }
-.filter-group { display: flex; gap: 6px; }
+.filter-group { display: flex; gap: 4px; }
 
 .reviews-list {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 10px;
   max-height: 480px;
   overflow-y: auto;
 }
@@ -443,9 +435,16 @@ const satisfactionRadarOption = computed(() => {
 }
 .rev-top { display: flex; justify-content: space-between; align-items: center; }
 .org-chip { font-size: 12px; }
-.rating-stars .star { color: #d1d5db; font-size: 14px; }
-.rating-stars .star.filled { color: #f59e0b; }
-.rev-text { font-size: 13px; color: var(--text-primary); font-style: italic; }
+.rating-badge {
+  font-size: 11px;
+  font-weight: 700;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  padding: 2px 6px;
+  border-radius: 6px;
+  color: var(--accent);
+}
+.rev-text { font-size: 13px; color: var(--text-primary); font-style: italic; line-height: 1.5; }
 .rev-meta { display: flex; justify-content: space-between; align-items: center; font-size: 11px; margin-top: 4px; }
 
 .review-form { display: flex; flex-direction: column; gap: 14px; margin-top: 14px; }
@@ -463,12 +462,12 @@ const satisfactionRadarOption = computed(() => {
 }
 .field textarea:focus { border-color: var(--accent); }
 .star-picker { display: flex; gap: 6px; }
-.star-btn { padding: 4px 10px; font-size: 12px; }
+.star-btn { padding: 5px 12px; font-size: 12px; font-weight: 600; }
 
 .success-notice {
   font-size: 12px;
   color: var(--success);
   font-weight: 600;
-  margin-top: 6px;
+  margin-top: 4px;
 }
 </style>

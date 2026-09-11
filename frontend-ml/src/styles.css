@@ -132,7 +132,37 @@ p { margin: 0; color: var(--text-secondary); }
 
 .muted { color: var(--muted); }
 .secondary { color: var(--text-secondary); }
-.mono-nums { font-variant-numeric: tabular-nums; }
+/* Icons & SVG Helpers */
+.icon-svg {
+  width: 16px;
+  height: 16px;
+  stroke-width: 2;
+  stroke: currentColor;
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  flex-shrink: 0;
+}
+.icon-svg-lg {
+  width: 22px;
+  height: 22px;
+  stroke-width: 2;
+  stroke: currentColor;
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  flex-shrink: 0;
+}
+.icon-svg-sm {
+  width: 13px;
+  height: 13px;
+  stroke-width: 2;
+  stroke: currentColor;
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  flex-shrink: 0;
+}
 
 /* Badges & Tags */
 .badge {

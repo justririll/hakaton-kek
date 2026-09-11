@@ -1,7 +1,7 @@
 <script setup>
 /**
  * Раздел «Кластеризация аудитории»:
- * 5 понятных архетипов центров, интерактивный радарный профиль,
+ * 5 аудиторных моделей (архетипов), радарный профиль,
  * 2D-карта сходства центров и сравнительная матрица.
  */
 import { computed, ref } from "vue"
@@ -52,7 +52,6 @@ const radarOption = computed(() => {
   const avgRevenue = members.reduce((acc, m) => acc + (m.revenue_total || 0), 0) / count
   const avgPubs = members.reduce((acc, m) => acc + (m.media_publications || 0), 0) / count
 
-  // Оценки по шкале 10-100
   const scoreAudience = Math.min(100, Math.max(15, Math.round((avgAudience / 500) * 100)))
   const scoreProducts = Math.min(100, Math.max(15, Math.round((avgProducts / 250) * 100)))
   const scoreResidents = Math.min(100, Math.max(15, Math.round((avgResidents / 400) * 100)))
@@ -64,7 +63,7 @@ const radarOption = computed(() => {
     tooltip: { trigger: "item" },
     legend: {
       bottom: 0,
-      textStyle: { color: p.textSecondary, fontSize: 12 },
+      textStyle: { color: p.textSecondary, fontSize: 11 },
     },
     radar: {
       indicator: [
@@ -91,8 +90,8 @@ const radarOption = computed(() => {
             name: `${meta.name}`,
             symbolSize: 6,
             itemStyle: { color: meta.color },
-            areaStyle: { color: meta.color + "33" },
-            lineStyle: { width: 2.5, color: meta.color },
+            areaStyle: { color: meta.color + "25" },
+            lineStyle: { width: 2, color: meta.color },
           },
           {
             value: [50, 50, 50, 50, 50],
@@ -112,7 +111,6 @@ const scatterMapOption = computed(() => {
   const p = palette()
   const points = props.clusters.embedding
 
-  // Формируем серии по кластерам
   const series = props.clusters.profiles.map((profile) => {
     const meta = getClusterMeta(profile.cluster_id)
     const clusterPoints = points.filter((d) => d.cluster === profile.cluster_id)
@@ -121,12 +119,12 @@ const scatterMapOption = computed(() => {
     return {
       name: meta.name,
       type: "scatter",
-      symbolSize: isSelected ? 18 : 12,
+      symbolSize: isSelected ? 16 : 10,
       itemStyle: {
         color: meta.color,
         borderColor: p.surface,
         borderWidth: 2,
-        opacity: isSelected ? 1.0 : 0.45,
+        opacity: isSelected ? 1.0 : 0.4,
       },
       data: clusterPoints.map((d) => [d.pc1, d.pc2, d.audience_total, d.name, d.org_id]),
     }
@@ -134,7 +132,7 @@ const scatterMapOption = computed(() => {
 
   return {
     ...baseOption(),
-    grid: { left: 20, right: 20, top: 30, bottom: 20, containLabel: true },
+    grid: { left: 20, right: 20, top: 20, bottom: 20, containLabel: true },
     tooltip: {
       ...baseOption().tooltip,
       formatter: (item) => {
@@ -142,7 +140,7 @@ const scatterMapOption = computed(() => {
         return `<b>${d[3]}</b><br/>
                 Аудитория: <b>${compact(d[2])} чел.</b><br/>
                 Архетип: <b>${item.seriesName}</b><br/>
-                <i>Кликните для выбора</i>`
+                <i>Кликните для перехода к досье</i>`
       },
     },
     xAxis: { type: "value", ...axisStyle(), axisLabel: { show: false }, splitLine: { lineStyle: { color: p.grid } } },
@@ -154,14 +152,13 @@ const scatterMapOption = computed(() => {
 
 <template>
   <div class="stack">
-    <!-- Понятное объяснение для любого зрителя -->
+    <!-- Понятное объяснение -->
     <div class="takeaway-box">
-      <span class="takeaway-icon">🎭</span>
       <div class="takeaway-text">
         <strong>Зачем нужна кластеризация аудитории:</strong>
-        Нельзя сравнивать профильное хореографическое училище на 20 человек и многотысячный институт культуры одной линейкой.
+        Нельзя оценивать профильное хореографическое училище на 20 человек и многотысячный институт культуры одной линейкой.
         Машинное обучение разделило 20 центров на <b>5 архетипов</b> на основе состава аудитории, формата обучения и глубины работы.
-        Теперь каждый центр сравнивается исключительно со своими коллегами по модели — разрыв между ними и лучшими и есть реальный резерв роста!
+        Каждый центр сравнивается исключительно со своими коллегами по модели — разрыв между ними и лучшими и есть реальный резерв роста.
       </div>
     </div>
 
@@ -179,7 +176,7 @@ const scatterMapOption = computed(() => {
         @click="selectedClusterId = profile.cluster_id"
       >
         <div class="arch-top">
-          <div class="arch-icon">{{ getClusterMeta(profile.cluster_id).icon }}</div>
+          <span class="arch-code-badge">{{ getClusterMeta(profile.cluster_id).code }}</span>
           <span class="arch-count">{{ profile.size }} центров</span>
         </div>
         <h3 class="arch-title">{{ profile.name }}</h3>
@@ -193,12 +190,12 @@ const scatterMapOption = computed(() => {
       <div class="card">
         <div class="profile-header">
           <div>
-            <div class="badge" :style="{ background: selectedMeta.glow, color: selectedMeta.color }">
-              {{ selectedMeta.icon }} Архетип: {{ selectedMeta.name }}
+            <div class="badge badge-accent">
+              Архетип: {{ selectedMeta.name }}
             </div>
             <h2>Радарный профиль модели на фоне сети</h2>
             <p class="muted sub">
-              Оценка сильных и слабых сторон архетипа по 5 ключевым осям деятельности.
+              Сопоставление сильных и слабых сторон архетипа по 5 ключевым осям деятельности.
             </p>
           </div>
         </div>
@@ -206,9 +203,9 @@ const scatterMapOption = computed(() => {
       </div>
 
       <div class="card">
-        <h2>Учреждения в архетипе «{{ selectedMeta.name }}»</h2>
+        <h2>Центры в архетипе «{{ selectedMeta.name }}»</h2>
         <p class="muted sub">
-          {{ selectedProfile.size }} центра со схожей аудиторной структурой:
+          {{ selectedProfile.size }} организаций со схожей аудиторной структурой:
         </p>
 
         <div class="members-list">
@@ -240,9 +237,9 @@ const scatterMapOption = computed(() => {
     <div class="card">
       <div class="section-header-row">
         <div>
-          <h2>Интерактивная карта сети (Проекция сходства моделей)</h2>
+          <h2>Карта сети (Проекция сходства моделей)</h2>
           <p class="muted sub">
-            Близость точек на карте означает сходство структуры аудитории и форматов. Выделенный архетип подсвечен ярко.
+            Близость точек на карте означает сходство структуры аудитории и форматов. Выделенный архетип подсвечен.
           </p>
         </div>
         <div class="cluster-pills">
@@ -254,18 +251,18 @@ const scatterMapOption = computed(() => {
             :style="{ borderColor: getClusterMeta(p.cluster_id).color }"
             @click="selectedClusterId = p.cluster_id"
           >
-            {{ getClusterMeta(p.cluster_id).icon }} {{ getClusterMeta(p.cluster_id).shortName }}
+            {{ getClusterMeta(p.cluster_id).shortName }}
           </button>
         </div>
       </div>
-      <EChart :option="scatterMapOption" height="360px" />
+      <EChart :option="scatterMapOption" height="340px" />
     </div>
 
     <!-- Статистическая верификация для экспертов -->
     <section class="card">
-      <h2>Математическая строгость кластеризации</h2>
+      <h2>Математическая верификация кластеризации</h2>
       <p class="muted sub">
-        Для тех, кто хочет проверить доказательность алгоритма:
+        Параметры доказательности алгоритмов для экспертного аудита:
       </p>
       <Disclosure label="Показать параметры валидации и устойчивости">
         <div class="validation-details">
@@ -299,27 +296,33 @@ const scatterMapOption = computed(() => {
 .archetype-card {
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 14px;
+  border-radius: 12px;
   padding: 16px;
   cursor: pointer;
   transition: all 0.2s ease;
   display: flex;
   flex-direction: column;
   gap: 8px;
-  position: relative;
 }
 .archetype-card:hover {
   transform: translateY(-2px);
   border-color: var(--cluster-color);
-  box-shadow: 0 4px 16px var(--cluster-glow);
+  box-shadow: 0 4px 14px var(--cluster-glow);
 }
 .archetype-card.active {
   border-color: var(--cluster-color);
-  background: var(--surface);
-  box-shadow: 0 0 0 2px var(--cluster-color), 0 6px 20px var(--cluster-glow);
+  box-shadow: 0 0 0 2px var(--cluster-color), 0 6px 18px var(--cluster-glow);
 }
 .arch-top { display: flex; justify-content: space-between; align-items: center; }
-.arch-icon { font-size: 24px; line-height: 1; }
+.arch-code-badge {
+  font-size: 11px;
+  font-weight: 700;
+  font-family: monospace;
+  color: var(--cluster-color);
+  background: var(--raised);
+  padding: 2px 6px;
+  border-radius: 4px;
+}
 .arch-count { font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase; }
 .arch-title { font-size: 15px; font-weight: 700; margin: 0; }
 .arch-badge {
@@ -327,9 +330,9 @@ const scatterMapOption = computed(() => {
   font-weight: 600;
   color: var(--cluster-color);
   text-transform: uppercase;
-  letter-spacing: 0.03em;
+  letter-spacing: 0.04em;
 }
-.arch-desc { font-size: 12px; line-height: 1.4; color: var(--text-secondary); margin: 0; }
+.arch-desc { font-size: 12px; line-height: 1.45; color: var(--text-secondary); margin: 0; }
 
 .two-col-grid {
   display: grid;
@@ -352,7 +355,7 @@ const scatterMapOption = computed(() => {
 .member-card {
   background: var(--raised);
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: 8px;
   padding: 10px 12px;
   display: flex;
   justify-content: space-between;
@@ -366,13 +369,13 @@ const scatterMapOption = computed(() => {
 }
 .member-info { display: flex; flex-direction: column; gap: 2px; }
 .member-stats { display: flex; flex-direction: column; gap: 4px; align-items: flex-end; }
-.stat-pill { font-size: 11px; font-weight: 600; background: var(--surface); padding: 2px 6px; border-radius: 6px; }
+.stat-pill { font-size: 11px; font-weight: 600; background: var(--surface); padding: 2px 6px; border-radius: 4px; }
 
 .distinctive-box {
   margin-top: 14px;
   padding: 12px;
   background: var(--raised);
-  border-radius: 10px;
+  border-radius: 8px;
   font-size: 12px;
 }
 
@@ -384,11 +387,11 @@ const scatterMapOption = computed(() => {
   gap: 12px;
   margin-bottom: 14px;
 }
-.cluster-pills { display: flex; flex-wrap: wrap; gap: 6px; }
+.cluster-pills { display: flex; flex-wrap: wrap; gap: 4px; }
 .cluster-pill-btn {
   font-size: 12px;
-  padding: 5px 10px;
-  border-radius: 8px;
+  padding: 4px 10px;
+  border-radius: 6px;
 }
 
 .validation-details { font-size: 13px; line-height: 1.6; display: flex; flex-direction: column; gap: 8px; }

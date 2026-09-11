@@ -1,5 +1,6 @@
 <script setup>
 import { onMounted, onBeforeUnmount } from "vue"
+import Icon from "./Icon.vue"
 import { compact, money, percent } from "../theme"
 
 const props = defineProps({
@@ -27,18 +28,23 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown))
     <div class="modal-container print-area">
       <div class="modal-header no-print">
         <div class="header-info">
-          <span class="badge badge-accent">Экспресс-отчет для руководства</span>
+          <span class="badge badge-accent">Служебная аналитическая записка</span>
           <h2>Сводный управленческий бриф сети центров</h2>
         </div>
         <div class="actions">
-          <button class="btn-primary" @click="printReport">🖨️ Распечатать / В PDF</button>
-          <button class="close-btn" @click="emit('close')">✕</button>
+          <button class="btn-primary" @click="printReport">
+            <Icon name="printer" :size="14" />
+            <span>Распечатать / PDF</span>
+          </button>
+          <button class="close-btn" @click="emit('close')" title="Закрыть">
+            <Icon name="x" :size="16" />
+          </button>
         </div>
       </div>
 
       <div class="modal-body">
         <div class="report-header">
-          <h1>Аналитическая справка: Сеть центров прототипирования</h1>
+          <h1>Аналитический бриф: Сеть центров прототипирования РФ</h1>
           <p class="muted">
             Отчётный период: 9 месяцев 2026 г. • Охват: {{ overview.organizations }} организаций высшего образования в сфере культуры
           </p>
@@ -64,14 +70,14 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown))
             </div>
             <div class="m-card">
               <span class="m-label">Выполнение плана года</span>
-              <strong class="m-value">{{ overview.organizations - overview.plan_at_risk }}/{{ overview.organizations }}</strong>
+              <strong class="m-value">{{ overview.organizations - overview.plan_at_risk }} / {{ overview.organizations }}</strong>
               <small class="muted">центров в графике</small>
             </div>
           </div>
         </div>
 
         <div class="report-section">
-          <h3>2. Аудиторные модели работы (5 кластеров)</h3>
+          <h3>2. Аудиторные модели работы (5 архетипов)</h3>
           <p class="section-desc">
             Центры разделены по структуре аудитории, форматам обучения и глубине сопровождения:
           </p>
@@ -87,7 +93,7 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown))
               <tbody>
                 <tr v-for="p in clusters.profiles" :key="p.cluster_id">
                   <td><b>{{ p.name }}</b></td>
-                  <td>{{ p.size }}</td>
+                  <td class="mono-nums">{{ p.size }}</td>
                   <td>{{ p.summary }}</td>
                 </tr>
               </tbody>
@@ -96,23 +102,23 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown))
         </div>
 
         <div class="report-section">
-          <h3>3. Оценка скрытого резерва сети (AI-рекомендации)</h3>
+          <h3>3. Оценка резерва сети (AI-рекомендации)</h3>
           <p class="section-desc">
-            Приведение отстающих центров к стандартам лучших в своём кластере обеспечивает прирост без дополнительных бюджетных вливаний:
+            Приведение отстающих центров к стандартам лучших в своём архетипе обеспечивает прирост без дополнительных бюджетных вливаний:
           </p>
           <div class="impact-grid">
             <div class="impact-box">
-              <span class="impact-plus">+{{ compact(overview.recommendations.impact.participants?.total) }}</span>
+              <span class="impact-plus">+{{ compact(overview.recommendations?.impact?.participants?.total) }}</span>
               <span class="impact-title">дополнительных участников (+40%)</span>
               <p class="muted">за счёт наполняемости существующих мастер-классов</p>
             </div>
             <div class="impact-box">
-              <span class="impact-plus">+{{ compact(overview.recommendations.impact.products?.total) }}</span>
+              <span class="impact-plus">+{{ compact(overview.recommendations?.impact?.products?.total) }}</span>
               <span class="impact-title">готовых арт-продуктов (+68%)</span>
               <p class="muted">за счёт добавления проектных воркшопов к лекциям</p>
             </div>
             <div class="impact-box">
-              <span class="impact-plus">+{{ money(overview.recommendations.impact.revenue?.total) }}</span>
+              <span class="impact-plus">+{{ money(overview.recommendations?.impact?.revenue?.total) }}</span>
               <span class="impact-title">дополнительной выручки (+38%)</span>
               <p class="muted">за счёт платных специализированных модулей</p>
             </div>
@@ -140,29 +146,29 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown))
 
 <style scoped>
 .header-info { display: flex; flex-direction: column; gap: 4px; }
-.actions { display: flex; align-items: center; gap: 12px; }
-.report-header { border-bottom: 2px solid var(--border); padding-bottom: 16px; }
-.report-header h1 { font-size: 20px; font-weight: 700; }
-.report-section { display: flex; flex-direction: column; gap: 10px; margin-top: 10px; }
-.report-section h3 { font-size: 15px; color: var(--accent); }
+.actions { display: flex; align-items: center; gap: 8px; }
+.report-header { border-bottom: 1px solid var(--border); padding-bottom: 16px; }
+.report-header h1 { font-size: 18px; font-weight: 700; }
+.report-section { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }
+.report-section h3 { font-size: 14px; color: var(--accent); font-weight: 700; }
 .section-desc { font-size: 13px; margin: 0; }
 
 .metrics-row {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-  gap: 12px;
+  gap: 10px;
 }
 .m-card {
   background: var(--raised);
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: 8px;
   padding: 12px;
   display: flex;
   flex-direction: column;
   gap: 3px;
 }
 .m-label { font-size: 11px; color: var(--muted); text-transform: uppercase; }
-.m-value { font-size: 20px; font-weight: 700; color: var(--text-primary); }
+.m-value { font-size: 18px; font-weight: 700; color: var(--text-primary); font-variant-numeric: tabular-nums; }
 
 .report-table { width: 100%; border-collapse: collapse; font-size: 13px; }
 .report-table th, .report-table td { padding: 8px 12px; border: 1px solid var(--border); }
@@ -171,22 +177,22 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown))
 .impact-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 14px;
+  gap: 12px;
 }
 .impact-box {
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 12px;
-  padding: 16px;
+  border-radius: 8px;
+  padding: 14px;
   display: flex;
   flex-direction: column;
   gap: 4px;
 }
-.impact-plus { font-size: 22px; font-weight: 700; color: var(--success); }
+.impact-plus { font-size: 20px; font-weight: 700; color: var(--success); font-variant-numeric: tabular-nums; }
 .impact-title { font-weight: 600; font-size: 13px; }
 
 .action-plan { padding-left: 20px; margin: 0; font-size: 13px; display: flex; flex-direction: column; gap: 6px; }
-.report-footer { border-top: 1px solid var(--border); padding-top: 12px; margin-top: 16px; font-size: 11px; text-align: center; }
+.report-footer { border-top: 1px solid var(--border); padding-top: 12px; margin-top: 14px; font-size: 11px; text-align: center; }
 
 @media print {
   .no-print { display: none !important; }
