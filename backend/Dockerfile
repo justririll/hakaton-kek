@@ -2,10 +2,11 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
+# Ключ Gemini сюда не зашивается: он передаётся окружением из .env рядом с
+# docker-compose.yml. Образ с секретом внутри утекает вместе с реестром.
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
-    CULTURE_PULSE_DATA=/app/DATASET \
-    GEMINI_API_KEY=AQ.Ab8RN6K8-sg6eZ2ru31kJofFpAki3j3bjOZg_uIkZLigNfAHKw
+    CULTURE_PULSE_DATA=/app/DATASET
 
 RUN pip install --no-cache-dir \
     "fastapi>=0.115" \

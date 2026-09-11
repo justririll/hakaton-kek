@@ -219,69 +219,71 @@ onMounted(async () => {
         <button class="btn-primary" style="margin-top: 12px;" @click="window.location.reload()">Повторить</button>
       </div>
 
-      <template v-else>
-        <!-- 1. Главное & Пульс -->
-        <SectionStory
-          v-if="active === 'story'"
-          :overview="data.overview"
-          :recommendations="data.recommendations"
-          :anomalies="data.anomalies"
-          :clusters="data.clusters"
-          :validation="data.validation"
-          @select-tab="switchTab"
-          @select-org="openOrg"
-        />
+      <Transition v-else name="section" mode="out-in">
+        <div :key="active" class="section-wrap">
+          <!-- 1. Главное & Пульс -->
+          <SectionStory
+            v-if="active === 'story'"
+            :overview="data.overview"
+            :recommendations="data.recommendations"
+            :anomalies="data.anomalies"
+            :clusters="data.clusters"
+            :validation="data.validation"
+            @select-tab="switchTab"
+            @select-org="openOrg"
+          />
 
-        <!-- 2. Посещаемость & Динамика -->
-        <SectionDynamics
-          v-else-if="active === 'dynamics'"
-          :overview="data.overview"
-          :organizations="data.organizations"
-          :plan="data.plan"
-          :channels="data.meta.channels"
-          @select-org="openOrg"
-        />
+          <!-- 2. Посещаемость & Динамика -->
+          <SectionDynamics
+            v-else-if="active === 'dynamics'"
+            :overview="data.overview"
+            :organizations="data.organizations"
+            :plan="data.plan"
+            :channels="data.meta.channels"
+            @select-org="openOrg"
+          />
 
-        <!-- 3. Обратная связь & Вовлеченность -->
-        <SectionFeedback
-          v-else-if="active === 'feedback'"
-          :overview="data.overview"
-          :organizations="data.organizations"
-        />
+          <!-- 3. Обратная связь & Вовлеченность -->
+          <SectionFeedback
+            v-else-if="active === 'feedback'"
+            :overview="data.overview"
+            :organizations="data.organizations"
+          />
 
-        <!-- 4. Кластеризация аудитории -->
-        <SectionClusters
-          v-else-if="active === 'clusters'"
-          :clusters="data.clusters"
-          :validation="data.validation"
-          :organizations="data.organizations"
-          @select-org="openOrg"
-        />
+          <!-- 4. Кластеризация аудитории -->
+          <SectionClusters
+            v-else-if="active === 'clusters'"
+            :clusters="data.clusters"
+            :validation="data.validation"
+            :organizations="data.organizations"
+            @select-org="openOrg"
+          />
 
-        <!-- 5. Рекомендации & Симулятор -->
-        <SectionRecommendations
-          v-else-if="active === 'recommendations'"
-          :recommendations="data.recommendations"
-          :summary="data.overview.recommendations"
-          @select-org="openOrg"
-        />
+          <!-- 5. Рекомендации & Симулятор -->
+          <SectionRecommendations
+            v-else-if="active === 'recommendations'"
+            :recommendations="data.recommendations"
+            :summary="data.overview.recommendations"
+            @select-org="openOrg"
+          />
 
-        <!-- 6. Центры культуры (Каталог 20 организаций) -->
-        <SectionOrganizations
-          v-else-if="active === 'organizations'"
-          :organizations="data.organizations"
-          :plan="data.plan"
-          :clusters="data.clusters"
-          @select-org="openOrg"
-        />
+          <!-- 6. Центры культуры (Каталог 20 организаций) -->
+          <SectionOrganizations
+            v-else-if="active === 'organizations'"
+            :organizations="data.organizations"
+            :plan="data.plan"
+            :clusters="data.clusters"
+            @select-org="openOrg"
+          />
 
-        <!-- 7. Контроль качества данных -->
-        <SectionQuality
-          v-else-if="active === 'quality'"
-          :anomalies="data.anomalies"
-          :quality="data.quality"
-        />
-      </template>
+          <!-- 7. Контроль качества данных -->
+          <SectionQuality
+            v-else-if="active === 'quality'"
+            :anomalies="data.anomalies"
+            :quality="data.quality"
+          />
+        </div>
+      </Transition>
     </main>
 
     <!-- Подвал -->
@@ -459,6 +461,34 @@ onMounted(async () => {
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
 }
+/* Переключение разделов: короткий сдвиг вверх вместо мгновенной подмены.
+   mode="out-in" не даёт двум разделам накладываться друг на друга. */
+.section-enter-active,
+.section-leave-active {
+  transition: opacity 0.18s ease, transform 0.18s ease;
+}
+.section-enter-from {
+  opacity: 0;
+  transform: translateY(8px);
+}
+.section-leave-to {
+  opacity: 0;
+  transform: translateY(-4px);
+}
+
+/* Пользователям, попросившим убрать анимации, отдаём мгновенную подмену. */
+@media (prefers-reduced-motion: reduce) {
+  .section-enter-active,
+  .section-leave-active {
+    transition: none;
+  }
+  .section-enter-from,
+  .section-leave-to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
 @keyframes spin {
   to { transform: rotate(360deg); }
 }

@@ -11,10 +11,10 @@ services:
       # Без ключа AI-слой выключается, остальная витрина работает как обычно.
       - GEMINI_API_KEY=${GEMINI_API_KEY:-}
       - GEMINI_MODEL=${GEMINI_MODEL:-gemini-flash-lite-latest}
+    # Порт наружу не публикуется: API доступен только фронтенду по внутренней
+    # сети compose, снаружи — через nginx по HTTPS.
     expose:
       - "8010"
-    ports:
-      - "8010:8010"
 
   frontend:
     build:
@@ -24,5 +24,31 @@ services:
     restart: unless-stopped
     ports:
       - "80:80"
+      - "443:443"
+    volumes:
+      - ./certbot/conf:/etc/letsencrypt:ro
+      - ./certbot/www:/var/www/certbot:ro
     depends_on:
       - backend
+    # Продлённый сертификат подхватывается только после перечитывания конфига.
+    # Без этого HTTPS молча сломался бы через три месяца, когда старый истечёт,
+    # а новый уже лежал бы на диске непрочитанным.
+    command: >
+      /bin/sh -c "while :; do sleep 6h & wait $${!}; nginx -s reload; done
+      & nginx -g 'daemon off;'"
+
+  # Продление сертификата. Certbot просыпается дважды в сутки, продлевает всё,
+  # чему осталось меньше 30 дней, и ничего не делает в остальное время.
+  certbot:
+    image: certbot/certbot
+    container_name: culture-pulse-certbot
+    restart: unless-stopped
+    volumes:
+      - ./certbot/conf:/etc/letsencrypt
+      - ./certbot/www:/var/www/certbot
+    entrypoint: >
+      sh -c "trap exit TERM;
+      while :; do
+        certbot renew --webroot -w /var/www/certbot --quiet;
+        sleep 12h & wait $${!};
+      done"

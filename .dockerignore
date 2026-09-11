@@ -1,8 +1,12 @@
 .git
 .gitignore
+.env
 node_modules
 frontend-ml/node_modules
-frontend/node_modules
+# Витрина собирается внутри образа, готовый dist в контекст тянуть не нужно.
+frontend-ml/dist
+# Сертификаты живут на сервере и монтируются томом, а не копируются в образ.
+certbot
 __pycache__
 *.pyc
 *.pyo
@@ -11,5 +15,3 @@ __pycache__
 .ruff_cache
 .venv
 backend/.venv
-frontend/dist
-

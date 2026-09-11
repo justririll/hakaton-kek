@@ -323,18 +323,43 @@ const highlights = computed(() => {
   gap: 14px;
   margin: 8px 0;
 }
+/* Три цифры резерва — главное, ради чего открывают эту страницу.
+   Полоса сверху и лёгкая подсветка отделяют их от обычных карточек. */
 .impact-card {
-  background: var(--raised);
+  position: relative;
+  overflow: hidden;
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--success) 7%, transparent) 0%, transparent 62%),
+    var(--raised);
   border: 1px solid var(--border);
   border-radius: 12px;
-  padding: 18px;
+  padding: 20px 18px 18px;
   display: flex;
   flex-direction: column;
   gap: 4px;
 }
-.impact-val { font-size: 26px; font-weight: 800; color: var(--success); font-variant-numeric: tabular-nums; }
+.impact-card::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 2px;
+  background: linear-gradient(90deg, var(--success), color-mix(in srgb, var(--success) 25%, transparent));
+}
+.impact-val {
+  font-size: 30px;
+  font-weight: 800;
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+  color: var(--success);
+  font-variant-numeric: tabular-nums;
+}
 .impact-lbl { font-size: 13px; font-weight: 600; color: var(--text-primary); }
 .impact-sub { font-size: 12px; color: var(--muted); }
+
+/* На узком экране крупный кегль съедает высоту без пользы. */
+@media (max-width: 560px) {
+  .impact-val { font-size: 26px; }
+}
 
 .takeaway-icon-dot {
   width: 8px;
