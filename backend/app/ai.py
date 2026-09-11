@@ -20,16 +20,16 @@ GEMINI_API_KEY = os.getenv(
     "GEMINI_API_KEY",
     "AQ.Ab8RN6K8-sg6eZ2ru31kJofFpAki3j3bjOZg_uIkZLigNfAHKw",
 )
-GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-flash-latest")
+GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.0-flash")
 
 # Кэш ответов в оперативной памяти: ключ -> dict с результатом
 _ai_cache: dict[str, dict[str, Any]] = {}
 
 
-def call_gemini(prompt: str, max_output_tokens: int = 8192, temperature: float = 0.2) -> dict[str, Any]:
+def call_gemini(prompt: str, max_output_tokens: int = 4096, temperature: float = 0.2) -> dict[str, Any]:
     """Синхронный вызов Google Gemini REST API с обработкой ошибок и фильтрацией рассуждений."""
-    # Перебираем доступные модели при сбоях
-    models_to_try = [GEMINI_MODEL, "gemini-3.6-flash", "gemini-3-flash-preview"]
+    # Используем экономичные и быстрые модели Gemini 2.0 Flash
+    models_to_try = [GEMINI_MODEL, "gemini-2.0-flash", "gemini-2.0-flash-lite", "gemini-1.5-flash"]
     # Убираем дубликаты сохраняя порядок
     seen = set()
     unique_models = []

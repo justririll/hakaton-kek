@@ -1,0 +1,26 @@
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    container_name: culture-pulse-backend
+    restart: unless-stopped
+    environment:
+      - CULTURE_PULSE_DATA=/app/DATASET
+      - GEMINI_API_KEY=AQ.Ab8RN6K8-sg6eZ2ru31kJofFpAki3j3bjOZg_uIkZLigNfAHKw
+      - GEMINI_MODEL=gemini-2.0-flash
+    expose:
+      - "8010"
+    ports:
+      - "8010:8010"
+
+  frontend:
+    build:
+      context: .
+      dockerfile: frontend-ml/Dockerfile
+    container_name: culture-pulse-frontend
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
