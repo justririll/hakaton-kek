@@ -1,15 +1,31 @@
+# --- python ---
 .venv/
+backend/.venv/
+.uv/
 __pycache__/
 *.py[cod]
+*.egg-info/
 .pytest_cache/
 .ruff_cache/
 .coverage
 htmlcov/
+
+# --- node ---
+node_modules/
 dist/
 build/
-*.egg-info/
+.vite/
+
+# --- данные, генерируемые конвейером ---
+data/*.csv
+data/*.parquet
+!data/.gitkeep
+
+# --- окружение и редакторы ---
 .env
 .env.*
 !.env.example
 .idea/
 .vscode/
+.DS_Store
+*.log
