@@ -206,10 +206,20 @@ onMounted(() => {
 
     <!-- Краткий вид если свернуто -->
     <div v-else-if="summary && !expanded" class="ai-collapsed-preview" @click="expanded = true">
-      <p class="muted preview-text">
-        {{ parsedSections[0]?.paragraphs[0] || 'Нажмите, чтобы раскрыть полный управленческий бриф...' }}
+      <p class="preview-text">
+        {{ parsedSections[0]?.paragraphs[0] || "Нажмите, чтобы раскрыть полный управленческий бриф." }}
       </p>
-      <span class="view-more">Показать полностью (3 раздела) →</span>
+      <div class="preview-footer">
+        <div class="preview-chips">
+          <span v-for="sec in parsedSections" :key="sec.title" class="preview-chip">
+            {{ sec.title }}
+          </span>
+        </div>
+        <span class="view-more">
+          Развернуть бриф
+          <Icon name="chevron-right" :size="13" />
+        </span>
+      </div>
     </div>
   </div>
 </template>
@@ -217,8 +227,7 @@ onMounted(() => {
 <style scoped>
 .ai-card {
   background: var(--surface);
-  border: 1px solid rgba(139, 92, 246, 0.25);
-  box-shadow: 0 4px 20px rgba(139, 92, 246, 0.06);
+  border: 1px solid var(--border);
   position: relative;
   overflow: hidden;
   display: flex;
@@ -232,7 +241,7 @@ onMounted(() => {
   left: 0;
   right: 0;
   height: 2px;
-  background: linear-gradient(90deg, #3b82f6, #8b5cf6, #ec4899);
+  background: linear-gradient(90deg, var(--purple), color-mix(in srgb, var(--purple) 20%, transparent));
 }
 
 .ai-header {
@@ -401,23 +410,49 @@ onMounted(() => {
   background: var(--raised);
   border: 1px solid var(--border);
   border-radius: 10px;
-  padding: 12px 16px;
+  padding: 14px 16px;
   cursor: pointer;
   display: flex;
-  justify-content: space-between;
-  align-items: center;
+  flex-direction: column;
   gap: 12px;
   transition: border-color 0.15s ease;
 }
 .ai-collapsed-preview:hover { border-color: var(--purple); }
 .preview-text {
   font-size: 13px;
+  line-height: 1.6;
+  color: var(--text-secondary);
+  /* Ограничение по строкам вместо nowrap: раньше фраза рвалась посреди слова. */
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+  -webkit-box-orient: vertical;
   overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  max-width: 800px;
+  margin: 0;
+}
+.preview-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+.preview-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.preview-chip {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--muted);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 3px 9px;
 }
 .view-more {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
   font-size: 12px;
   font-weight: 600;
   color: var(--purple);
