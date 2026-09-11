@@ -159,27 +159,28 @@ const filteredOrgs = computed(() => {
         @click="emit('select-org', org.org_id)"
       >
         <div class="card-header">
-          <div class="header-main">
+          <div class="card-tags">
             <span
-              class="badge badge-neutral"
+              class="badge badge-neutral cluster-tag"
               :style="{ color: org.clusterMeta.color }"
+              :title="org.clusterMeta.name"
             >
-              {{ org.clusterMeta.name }}
+              {{ org.clusterMeta.shortName || org.clusterMeta.name }}
             </span>
-            <h3 class="org-title">{{ org.short_name }}</h3>
+            <span
+              v-if="org.planInfo.status"
+              class="badge status-tag"
+              :class="{
+                'badge-good': org.planInfo.status === 'опережение' || org.planInfo.status === 'в графике',
+                'badge-warning': org.planInfo.status === 'риск',
+                'badge-danger': org.planInfo.status === 'срыв',
+                'badge-neutral': org.planInfo.status === 'без базы',
+              }"
+            >
+              {{ org.planInfo.status }}
+            </span>
           </div>
-          <span
-            v-if="org.planInfo.status"
-            class="badge"
-            :class="{
-              'badge-good': org.planInfo.status === 'опережение' || org.planInfo.status === 'в графике',
-              'badge-warning': org.planInfo.status === 'риск',
-              'badge-danger': org.planInfo.status === 'срыв',
-              'badge-neutral': org.planInfo.status === 'без базы',
-            }"
-          >
-            {{ org.planInfo.status }}
-          </span>
+          <h3 class="org-title">{{ org.short_name }}</h3>
         </div>
 
         <p class="org-full muted">{{ org.full_name?.slice(0, 75) }}...</p>
@@ -261,12 +262,12 @@ const filteredOrgs = computed(() => {
   flex-wrap: wrap;
   gap: 4px;
 }
-.filter-label { font-size: 12px; font-weight: 600; width: 64px; }
+.filter-label { font-size: 12px; font-weight: 600; width: 64px; flex-shrink: 0; }
 .pill-btn { font-size: 11px; padding: 4px 10px; border-radius: 6px; }
 
 .orgs-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(270px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
   gap: 14px;
 }
 .org-card {
@@ -275,6 +276,7 @@ const filteredOrgs = computed(() => {
   gap: 12px;
   cursor: pointer;
   transition: all 0.15s ease;
+  overflow: hidden;
 }
 .org-card:hover {
   transform: translateY(-2px);
@@ -282,9 +284,33 @@ const filteredOrgs = computed(() => {
   box-shadow: var(--shadow-lg);
 }
 
-.card-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }
-.header-main { display: flex; flex-direction: column; gap: 4px; }
-.org-title { font-size: 15px; font-weight: 700; margin: 0; }
+.card-header {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.card-tags {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 6px;
+  width: 100%;
+}
+.cluster-tag {
+  max-width: 65%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.status-tag {
+  flex-shrink: 0;
+}
+.org-title {
+  font-size: 15px;
+  font-weight: 700;
+  margin: 0;
+  line-height: 1.35;
+}
 .org-full { font-size: 12px; line-height: 1.4; margin: 0; }
 
 .plan-mini { display: flex; flex-direction: column; gap: 4px; }
@@ -314,4 +340,11 @@ const filteredOrgs = computed(() => {
 .view-hint { font-size: 12px; font-weight: 600; color: var(--accent); }
 
 .empty-state { text-align: center; padding: 40px; grid-column: 1 / -1; }
+
+@media (max-width: 680px) {
+  .orgs-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+}
 </style>
