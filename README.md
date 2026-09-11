@@ -18,6 +18,7 @@ You do not need to activate the environment when using `uv run`.
 
 - API: http://127.0.0.1:8000/
 - Health: http://127.0.0.1:8000/health
+- Analytics dashboard: http://127.0.0.1:8000/api/v1/analytics/dashboard
 - Swagger UI: http://127.0.0.1:8000/docs
 - ReDoc: http://127.0.0.1:8000/redoc
 
