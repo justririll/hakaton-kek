@@ -6,13 +6,13 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import logging
 import os
 import time
 import urllib.error
 import urllib.request
-import random
 from pathlib import Path
 from typing import Any
 
@@ -34,8 +34,10 @@ if GEMINI_PROXY:
 else:
     _opener = urllib.request.build_opener()
 
-# Кэш ответов (в памяти + файл на диске для переживания перезапусков)
-_CACHE_FILE = Path(os.getenv("AI_CACHE_FILE", "/tmp/vss_ai_cache.json"))
+# Кэш ответов модели. Файл лежит на смонтированном томе, а не в /tmp контейнера:
+# пересоздание контейнера при каждом деплое стирало бы его вместе со слоем.
+# Кэшируются только удачные ответы модели — см. _remember().
+_CACHE_FILE = Path(os.getenv("AI_CACHE_FILE", "/app/cache/ai_cache.json"))
 _ai_cache: dict[str, dict[str, Any]] = {}
 
 
@@ -47,6 +49,39 @@ def _load_cache() -> None:
                 _ai_cache = json.load(f)
         except Exception as err:
             log.warning("Не удалось загрузить кэш AI с диска: %s", err)
+
+
+def _fingerprint(prompt: str) -> str:
+    """Короткий отпечаток промпта — основа ключа кэша.
+
+    Раньше ключом была строка вида "network_summary", не связанная с
+    содержимым. Ответ, сохранённый при прошлых данных или прошлой редакции
+    промпта, продолжал отдаваться и после того, как и то и другое поменялось.
+    """
+    return hashlib.sha256(prompt.encode("utf-8")).hexdigest()[:16]
+
+
+def _remember(key: str, output: dict[str, Any]) -> None:
+    """Запоминает только удачный ответ модели.
+
+    Запасной текст в кэш не попадает: иначе один сбой сети закреплялся бы
+    надолго и подменял собой нормальный бриф даже после того, как модель
+    снова стала отвечать.
+    """
+    if output.get("status") != "ok":
+        return
+    _ai_cache[key] = output
+    _save_cache()
+
+
+def _last_good(key: str) -> dict[str, Any] | None:
+    """Последний удачный ответ модели, если он сохранён."""
+    cached = _ai_cache.get(key)
+    if not cached or cached.get("status") != "ok":
+        return None
+    if len(cached.get("content", "")) < 300:
+        return None
+    return dict(cached)
 
 
 def _save_cache() -> None:
@@ -324,14 +359,6 @@ def synthesize_org_report(org_id: str, state: Any) -> str:
 
 def get_network_ai_summary(state: Any, force_refresh: bool = False) -> dict[str, Any]:
     """Генерирует исполнительское резюме по всей сети 20 центров."""
-    cache_key = "network_summary"
-    if not force_refresh and cache_key in _ai_cache:
-        cached = dict(_ai_cache[cache_key])
-        if len(cached.get("content", "")) > 300:
-            time.sleep(random.uniform(1.0, 1.5))
-            cached["from_cache"] = True
-            return cached
-
     orgs_count = len(state.dataset.organizations)
     overview_data = state.profile
     aud_total = int(overview_data["audience_total"].sum()) if "audience_total" in overview_data else 4193
@@ -391,6 +418,13 @@ def get_network_ai_summary(state: Any, force_refresh: bool = False) -> dict[str,
 3. **Тиражирование успешных практик лидеров:** (конкретная мера)
 """
 
+    cache_key = f"network:{_fingerprint(prompt)}"
+    if not force_refresh:
+        cached = _last_good(cache_key)
+        if cached:
+            cached["from_cache"] = True
+            return cached
+
     res = call_gemini(prompt, max_output_tokens=4096)
 
     if res["status"] == "ok" and len(res["text"]) >= 350 and "###" in res["text"]:
@@ -403,13 +437,23 @@ def get_network_ai_summary(state: Any, force_refresh: bool = False) -> dict[str,
             "tokens": res["tokens"],
             "from_cache": False,
         }
-        _ai_cache[cache_key] = output
-        _save_cache()
+        _remember(cache_key, output)
         return output
 
-    # Gemini недоступен или вернул обрывок — отдаём детерминированный синтез на
-    # тех же числах. Он честно помечен: подменять имя модели и рисовать
-    # правдоподобные счётчики токенов значило бы врать о происхождении текста.
+    # Модель не ответила. Сначала пробуем прошлый удачный бриф: на защите лучше
+    # показать вчерашний текст модели, чем деградировать до расчётного, — числа
+    # в нём те же, конвейер детерминирован.
+    stale = _last_good(cache_key)
+    if stale:
+        log.warning("Gemini недоступен (%s), отдан сохранённый бриф", res.get("error"))
+        stale["from_cache"] = True
+        stale["stale"] = True
+        stale["error"] = res.get("error") or "модель недоступна, показан сохранённый ответ"
+        return stale
+
+    # Сохранённого ответа нет — честный детерминированный синтез на тех же числах.
+    # Подменять имя модели и рисовать правдоподобные счётчики токенов значило бы
+    # врать о происхождении текста. В кэш он не попадает.
     log.warning("Gemini недоступен, отдан детерминированный бриф: %s", res.get("error"))
     synth_text = synthesize_network_report(state)
     output = {
@@ -422,21 +466,11 @@ def get_network_ai_summary(state: Any, force_refresh: bool = False) -> dict[str,
         "error": res.get("error") or "модель не вернула пригодный текст",
         "from_cache": False,
     }
-    _ai_cache[cache_key] = output
-    _save_cache()
     return output
 
 
 def get_org_ai_summary(org_id: str, state: Any, force_refresh: bool = False) -> dict[str, Any]:
     """Генерирует индивидуальный аналитический разбор для конкретного центра."""
-    cache_key = f"org_{org_id}"
-    if not force_refresh and cache_key in _ai_cache:
-        cached = dict(_ai_cache[cache_key])
-        if len(cached.get("content", "")) > 300:
-            time.sleep(random.uniform(0.8, 1.3))
-            cached["from_cache"] = True
-            return cached
-
     orgs = state.dataset.organizations
     if org_id not in orgs.index:
         return {"status": "error", "error": f"Организация {org_id} не найдена"}
@@ -498,6 +532,13 @@ def get_org_ai_summary(org_id: str, state: Any, force_refresh: bool = False) -> 
 3. **Шаг 3:** (конкретное действие для закрытия годового плана в IV квартале)
 """
 
+    cache_key = f"org:{org_id}:{_fingerprint(prompt)}"
+    if not force_refresh:
+        cached = _last_good(cache_key)
+        if cached:
+            cached["from_cache"] = True
+            return cached
+
     res = call_gemini(prompt, max_output_tokens=4096)
 
     if res["status"] == "ok" and len(res["text"]) >= 350 and "###" in res["text"]:
@@ -512,11 +553,18 @@ def get_org_ai_summary(org_id: str, state: Any, force_refresh: bool = False) -> 
             "tokens": res["tokens"],
             "from_cache": False,
         }
-        _ai_cache[cache_key] = output
-        _save_cache()
+        _remember(cache_key, output)
         return output
 
-    # То же правило для карточки центра: источник текста называется своим именем.
+    # То же правило для карточки центра: сначала сохранённый ответ модели.
+    stale = _last_good(cache_key)
+    if stale:
+        log.warning("Gemini недоступен по %s (%s), отдан сохранённый разбор", org_id, res.get("error"))
+        stale["from_cache"] = True
+        stale["stale"] = True
+        stale["error"] = res.get("error") or "модель недоступна, показан сохранённый ответ"
+        return stale
+
     log.warning("Gemini недоступен по %s, отдан детерминированный разбор: %s", org_id, res.get("error"))
     synth_text = synthesize_org_report(org_id, state)
     output = {
@@ -531,6 +579,4 @@ def get_org_ai_summary(org_id: str, state: Any, force_refresh: bool = False) -> 
         "error": res.get("error") or "модель не вернула пригодный текст",
         "from_cache": False,
     }
-    _ai_cache[cache_key] = output
-    _save_cache()
     return output

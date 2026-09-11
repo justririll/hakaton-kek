@@ -19,6 +19,10 @@ RUN pip install --no-cache-dir \
     "openpyxl>=3.1.5" \
     "xlrd>=2.0.2"
 
+# Каталог кэша создаётся заранее: том монтируется сюда, но без каталога
+# запись упала бы при запуске без тома.
+RUN mkdir -p /app/cache
+
 COPY DATASET /app/DATASET
 COPY backend/app /app/app
 
