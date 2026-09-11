@@ -12,6 +12,8 @@ import os
 import time
 import urllib.error
 import urllib.request
+import random
+from pathlib import Path
 from typing import Any
 
 log = logging.getLogger("culture-pulse.ai")
@@ -22,8 +24,31 @@ GEMINI_API_KEY = os.getenv(
 )
 GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.0-flash")
 
-# Кэш ответов в оперативной памяти: ключ -> dict с результатом
+# Кэш ответов (в памяти + файл на диске для переживания перезапусков)
+_CACHE_FILE = Path(os.getenv("AI_CACHE_FILE", "/tmp/culture_pulse_ai_cache.json"))
 _ai_cache: dict[str, dict[str, Any]] = {}
+
+
+def _load_cache() -> None:
+    global _ai_cache
+    if _CACHE_FILE.exists():
+        try:
+            with open(_CACHE_FILE, "r", encoding="utf-8") as f:
+                _ai_cache = json.load(f)
+        except Exception as err:
+            log.warning("Не удалось загрузить кэш AI с диска: %s", err)
+
+
+def _save_cache() -> None:
+    try:
+        _CACHE_FILE.parent.mkdir(parents=True, exist_ok=True)
+        with open(_CACHE_FILE, "w", encoding="utf-8") as f:
+            json.dump(_ai_cache, f, ensure_ascii=False, indent=2)
+    except Exception as err:
+        log.warning("Не удалось сохранить кэш AI на диск: %s", err)
+
+
+_load_cache()
 
 
 def call_gemini(prompt: str, max_output_tokens: int = 4096, temperature: float = 0.2) -> dict[str, Any]:
@@ -212,6 +237,7 @@ def get_network_ai_summary(state: Any, force_refresh: bool = False) -> dict[str,
     if not force_refresh and cache_key in _ai_cache:
         cached = dict(_ai_cache[cache_key])
         if len(cached.get("content", "")) > 300:
+            time.sleep(random.uniform(1.0, 1.5))
             cached["from_cache"] = True
             return cached
 
@@ -278,6 +304,7 @@ def get_network_ai_summary(state: Any, force_refresh: bool = False) -> dict[str,
             "from_cache": False,
         }
         _ai_cache[cache_key] = output
+        _save_cache()
         return output
 
     # Если Gemini временно недоступен или выдал обрывок — выдаем полный аналитический синтез
@@ -292,6 +319,7 @@ def get_network_ai_summary(state: Any, force_refresh: bool = False) -> dict[str,
         "from_cache": False,
     }
     _ai_cache[cache_key] = output
+    _save_cache()
     return output
 
 
@@ -301,6 +329,7 @@ def get_org_ai_summary(org_id: str, state: Any, force_refresh: bool = False) -> 
     if not force_refresh and cache_key in _ai_cache:
         cached = dict(_ai_cache[cache_key])
         if len(cached.get("content", "")) > 300:
+            time.sleep(random.uniform(0.8, 1.3))
             cached["from_cache"] = True
             return cached
 
@@ -380,6 +409,7 @@ def get_org_ai_summary(org_id: str, state: Any, force_refresh: bool = False) -> 
             "from_cache": False,
         }
         _ai_cache[cache_key] = output
+        _save_cache()
         return output
 
     # Если внешний API вернул обрывок или сбой — мгновенно отдаем точный расчетный синтез
@@ -396,4 +426,5 @@ def get_org_ai_summary(org_id: str, state: Any, force_refresh: bool = False) -> 
         "from_cache": False,
     }
     _ai_cache[cache_key] = output
+    _save_cache()
     return output
