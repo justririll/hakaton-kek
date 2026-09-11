@@ -6,15 +6,17 @@ import SectionClusters from './components/SectionClusters.vue'
 import SectionOverview from './components/SectionOverview.vue'
 import SectionQuality from './components/SectionQuality.vue'
 import SectionRecommendations from './components/SectionRecommendations.vue'
+import SectionStory from './components/SectionStory.vue'
 
 const SECTIONS = [
-  { key: 'overview', label: 'Обзор сети' },
-  { key: 'clusters', label: 'Аудиторные модели' },
-  { key: 'recommendations', label: 'Рекомендации' },
+  { key: 'story', label: 'Главное' },
+  { key: 'clusters', label: 'Типы центров' },
+  { key: 'recommendations', label: 'Что делать' },
+  { key: 'overview', label: 'Показатели' },
   { key: 'quality', label: 'Качество данных' },
 ]
 
-const active = ref('overview')
+const active = ref('story')
 const loading = ref(true)
 const error = ref(null)
 const data = ref({})
@@ -64,14 +66,14 @@ onMounted(async () => {
   <div class="shell">
     <header>
       <div class="brand">
-        <h1>Культурный пульс</h1>
-        <p class="muted">
-          Мониторинг сети центров прототипирования и творческих инкубаторов вузов культуры ·
-          Формы&nbsp;1 и&nbsp;2, отчётный период 2026&nbsp;года
-        </p>
+        <span class="mark">КП</span>
+        <div>
+          <h1>Культурный пульс</h1>
+          <p class="muted">Аналитика сети центров культуры</p>
+        </div>
       </div>
       <button class="theme" @click="cycleTheme">
-        тема: {{ { system: 'как в системе', light: 'светлая', dark: 'тёмная' }[theme] }}
+        {{ { system: '◐ как в системе', light: '☀ светлая', dark: '☾ тёмная' }[theme] }}
       </button>
     </header>
 
@@ -91,23 +93,31 @@ onMounted(async () => {
       <p v-else-if="error" class="state err">Не удалось загрузить данные: {{ error }}</p>
 
       <template v-else>
-        <SectionOverview
-          v-if="active === 'overview'"
+        <SectionStory
+          v-if="active === 'story'"
           :overview="data.overview"
-          :organizations="data.organizations"
-          :plan="data.plan"
-          :channels="data.meta.channels"
+          :recommendations="data.recommendations"
+          :anomalies="data.anomalies"
+          :clusters="data.clusters"
+          :validation="data.validation"
         />
         <SectionClusters
           v-else-if="active === 'clusters'"
           :clusters="data.clusters"
           :validation="data.validation"
+          :organizations="data.organizations"
         />
         <SectionRecommendations
           v-else-if="active === 'recommendations'"
           :recommendations="data.recommendations"
-          :types="data.meta.recommendation_types"
           :summary="data.overview.recommendations"
+        />
+        <SectionOverview
+          v-else-if="active === 'overview'"
+          :overview="data.overview"
+          :organizations="data.organizations"
+          :plan="data.plan"
+          :channels="data.meta.channels"
         />
         <SectionQuality v-else :anomalies="data.anomalies" :quality="data.quality" />
       </template>
@@ -115,19 +125,47 @@ onMounted(async () => {
 
     <footer class="muted">
       Источник — ежеквартальная отчётность по госпрограмме «Развитие культуры»,
-      {{ data.overview?.organizations || '—' }} организаций.
-      Модели пересчитаны за {{ data.overview?.build_seconds || '—' }}&nbsp;с.
+      {{ data.overview?.organizations || '—' }} организаций. Все модели пересчитываются
+      за {{ data.overview?.build_seconds || '—' }}&nbsp;с.
     </footer>
   </div>
 </template>
 
 <style scoped>
-.shell { max-width: 1320px; margin: 0 auto; padding: 28px 20px 60px; }
-header { display: flex; gap: 20px; align-items: flex-start; justify-content: space-between; flex-wrap: wrap; }
-.brand p { font-size: 13px; margin-top: 6px; max-width: 70ch; }
+.shell { max-width: 1240px; margin: 0 auto; padding: 24px 20px 60px; }
+
+header { display: flex; gap: 20px; align-items: center; justify-content: space-between; flex-wrap: wrap; }
+.brand { display: flex; gap: 12px; align-items: center; }
+.mark {
+  width: 38px;
+  height: 38px;
+  border-radius: 11px;
+  background: var(--accent);
+  color: #fff;
+  display: grid;
+  place-items: center;
+  font-weight: 700;
+  font-size: 14px;
+  letter-spacing: -0.02em;
+}
+.brand p { font-size: 12px; margin-top: 1px; }
 .theme { font-size: 12px; white-space: nowrap; }
-nav { display: flex; flex-wrap: wrap; gap: 8px; margin: 24px 0 20px; }
-.state { padding: 60px 0; text-align: center; }
+
+nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin: 26px 0 22px;
+  padding: 4px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  width: fit-content;
+  max-width: 100%;
+}
+nav button { border: none; border-radius: 8px; font-size: 13px; padding: 7px 14px; }
+
+.state { padding: 70px 0; text-align: center; }
 .err { color: #d03b3b; }
-footer { margin-top: 40px; font-size: 12px; }
+footer { margin-top: 44px; font-size: 12px; }
 </style>

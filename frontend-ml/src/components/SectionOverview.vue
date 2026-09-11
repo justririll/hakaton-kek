@@ -105,36 +105,38 @@ const planCounts = computed(() => Object.entries(props.overview.plan_status || {
   <div class="stack">
     <div class="tiles">
       <StatTile
-        label="Аудитория сети за отчётный период"
+        label="Через центры сети прошли"
         :value="compact(overview.audience_total)"
-        note="человек прошли обучение на мероприятиях центров"
+        note="человек за девять месяцев 2026 года"
         hero
       />
-      <StatTile label="Проведено форматов" :value="compact(overview.formats_total)" note="модули, мастер-классы, ПК и переподготовка" />
-      <StatTile label="Создано творческих продуктов" :value="compact(overview.products_total)" :note="`${overview.median_product_rate} продукта на участника — медиана сети`" />
-      <StatTile label="Объём оказанных услуг" :value="money(overview.revenue_total)" note="по всем видам деятельности" />
-      <StatTile label="Публикаций в СМИ" :value="compact(overview.publications_total)" :note="`${overview.federal_events_total} выходов на федеральные площадки`" />
+      <StatTile label="Проведено мероприятий" :value="compact(overview.formats_total)" note="курсы, мастер-классы и программы обучения" />
+      <StatTile label="Люди довели до результата" :value="compact(overview.products_total)" :note="`в среднем ${overview.median_product_rate} работы на участника`" />
+      <StatTile label="Заработано на услугах" :value="money(overview.revenue_total)" note="по всем видам деятельности" />
+      <StatTile label="Публикаций в СМИ" :value="compact(overview.publications_total)" :note="`и ${overview.federal_events_total} выходов на федеральные площадки`" />
       <StatTile
         label="План года под угрозой"
         :value="`${overview.plan_at_risk} из ${overview.organizations}`"
-        note="центров не выходят на цель при текущем темпе"
+        note="не выйдут на цель, если ничего не менять"
       />
     </div>
 
     <div class="card">
-      <h2>Состав аудитории по форматам</h2>
+      <h2>Кто и на что ходит</h2>
       <p class="muted sub">
-        Ширина полосы — число обученных. Разный состав при близком объёме означает разные
-        аудиторные модели: именно это разделение и находит кластеризация.
+        Длина полосы — сколько человек прошло через центр. Цвет показывает, на каких
+        форматах. Два центра могут собрать одинаковое число людей совершенно разными
+        программами — именно поэтому сеть и делится на типы.
       </p>
       <EChart :option="mixOption" height="520px" />
     </div>
 
     <div class="card">
-      <h2>Исполнение годовой цели по числу мероприятий</h2>
+      <h2>Кто успевает выполнить план года</h2>
       <p class="muted sub">
-        Цель — прирост на 10 % к предыдущему году (строка 1 Формы 1). Отчёт охватывает девять
-        месяцев, поэтому значение ниже 75 % означает отставание от равномерного темпа.
+        Центры обязаны провести на 10 % больше мероприятий, чем в прошлом году. Отчёт
+        сдан за девять месяцев из двенадцати, поэтому всё, что ниже 75 %, — отставание
+        от равномерного темпа.
       </p>
       <div class="legend-row">
         <span v-for="[status, count] in planCounts" :key="status" class="chip">

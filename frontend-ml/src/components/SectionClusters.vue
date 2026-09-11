@@ -1,12 +1,20 @@
 <script setup>
-/** Кластеры аудиторных моделей: пространство признаков, портреты, проверки. */
+/**
+ * Типы центров: человеческое описание найденных моделей работы.
+ *
+ * Раньше этот экран начинался с силуэта и ARI. Теперь он начинается с ответа
+ * на вопрос «кто на кого похож и почему это важно», а статистика убрана в
+ * раскрывающиеся блоки.
+ */
 import { computed } from 'vue'
+import Disclosure from './Disclosure.vue'
 import EChart from './EChart.vue'
-import { axisStyle, baseOption, palette } from '../theme'
+import { axisStyle, baseOption, palette, plural } from '../theme'
 
 const props = defineProps({
   clusters: { type: Object, required: true },
   validation: { type: Object, required: true },
+  organizations: { type: Array, required: true },
 })
 
 const variance = computed(() => {
@@ -14,13 +22,33 @@ const variance = computed(() => {
   return Math.round(shown.reduce((a, b) => a + b, 0) * 100)
 })
 
+const byId = computed(() => {
+  const map = {}
+  for (const org of props.organizations) map[org.org_id] = org
+  return map
+})
+
+/** Сводка типа в натуральных числах — понятнее, чем координаты центроида. */
+function facts(profile) {
+  const members = profile.members.map((id) => byId.value[id]).filter(Boolean)
+  if (!members.length) return null
+  const sum = (key) => members.reduce((acc, m) => acc + (m[key] || 0), 0)
+  const audience = sum('audience_total')
+  const formats = sum('supply_total')
+  return {
+    audience,
+    formats,
+    perEvent: formats ? Math.round(audience / formats) : 0,
+    products: sum('products_total'),
+  }
+}
+
 /**
- * Малые кратные вместо пяти цветов на одной диаграмме рассеяния.
+ * Карта сети — малыми кратными.
  *
- * Пять категориальных цветов не проходят проверку различимости по всем парам,
- * а на точечной диаграмме в сравнении участвуют именно все пары. Поэтому для
- * каждого кластера рисуется отдельная панель: выделенный кластер — акцентным
- * цветом, остальная сеть — приглушённым серым как контекст.
+ * Пять категориальных цветов на одной диаграмме рассеяния не проходят проверку
+ * различимости (в сравнении участвуют все пары цветов сразу). Поэтому каждый
+ * тип получает свою панель: выделенный — акцентом, остальные — серым.
  */
 function panelOption(clusterId) {
   const p = palette()
@@ -30,156 +58,155 @@ function panelOption(clusterId) {
 
   return {
     ...baseOption(),
-    grid: { left: 4, right: 12, top: 12, bottom: 4, containLabel: true },
+    grid: { left: 4, right: 10, top: 10, bottom: 4, containLabel: true },
     tooltip: {
       ...baseOption().tooltip,
-      formatter: (item) => {
-        const d = item.data
-        return `<b>${d[3]}</b><br/>аудитория: ${d[2]} чел.<br/>силуэт: ${d[4]}`
-      },
+      formatter: (item) => `<b>${item.data[3]}</b><br/>аудитория: ${item.data[2]} чел.`,
     },
-    xAxis: { type: 'value', ...axisStyle(), axisLabel: { show: false }, name: '' },
+    xAxis: { type: 'value', ...axisStyle(), axisLabel: { show: false } },
     yAxis: { type: 'value', ...axisStyle(), axisLabel: { show: false } },
     series: [
       {
-        name: 'остальная сеть',
+        name: 'остальные центры',
         type: 'scatter',
         symbolSize: 9,
         itemStyle: { color: p.dim, borderColor: p.surface, borderWidth: 2 },
-        data: outside.map((d) => [d.pc1, d.pc2, d.audience_total, d.name, d.silhouette]),
+        data: outside.map((d) => [d.pc1, d.pc2, d.audience_total, d.name]),
       },
       {
-        name: 'кластер',
+        name: 'этот тип',
         type: 'scatter',
         symbolSize: 13,
         itemStyle: { color: p.accent, borderColor: p.surface, borderWidth: 2 },
-        data: inside.map((d) => [d.pc1, d.pc2, d.audience_total, d.name, d.silhouette]),
+        data: inside.map((d) => [d.pc1, d.pc2, d.audience_total, d.name]),
       },
     ],
   }
 }
-
-const profiles = computed(() => props.clusters.profiles)
-const clustering = computed(() => props.validation.clustering)
-const recStability = computed(() => props.validation.recommendations)
 </script>
 
 <template>
   <div class="stack">
-    <div class="card">
-      <h2>Проверка разбиения</h2>
-      <p class="muted sub">
-        Кластеризация вернёт группы на любых данных, включая шум. Ниже — три независимые
-        проверки того, что найденная структура относится к данным, а не к алгоритму.
+    <section class="card">
+      <h2>Зачем делить сеть на типы</h2>
+      <p class="lede">
+        Музыкальную школу на двадцать человек и институт с аудиторией в полторы
+        тысячи нельзя мерить одной линейкой. Система сама нашла
+        <b>{{ plural(clusters.k, 'модель', 'модели', 'моделей') }} работы</b> — по тому, кого центр учит, насколько
+        плотно с ним работает и что получает на выходе. Дальше каждый центр
+        сравнивается только со своими.
       </p>
-      <div class="checks">
-        <div class="check">
-          <div class="check-label">Значимость структуры</div>
-          <div class="check-value">p = {{ clustering.permutation_p_value }}</div>
-          <div class="check-note">
-            силуэт {{ clustering.observed_silhouette }} против {{ clustering.permutation_mean }}
-            у случайных разбиений — выше на {{ clustering.effect_size }}&nbsp;σ
-          </div>
-        </div>
-        <div class="check">
-          <div class="check-label">Воспроизводимость состава</div>
-          <div class="check-value">ARI = {{ clustering.loo_mean_ari }}</div>
-          <div class="check-note">
-            среднее по 20 прогонам с исключением одного центра, минимум {{ clustering.loo_min_ari }}
-          </div>
-        </div>
-        <div class="check">
-          <div class="check-label">Устойчивость рекомендаций</div>
-          <div class="check-value">{{ Math.round(recStability.stable_share * 100) }} %</div>
-          <div class="check-note">
-            выводов сохраняются при исключении любого одного центра из эталонной группы
-          </div>
-        </div>
-        <div class="check">
-          <div class="check-label">Согласие алгоритмов</div>
-          <div class="check-value">
-            {{ clusters.agreement['kmeans~ward'] }}
-          </div>
-          <div class="check-note">ARI между k-средними и методом Уорда на одном пространстве</div>
-        </div>
-      </div>
-      <p class="verdict">{{ clustering.verdict }}</p>
-    </div>
+      <Disclosure label="Как именно считалось разбиение">
+        <p>
+          Одиннадцать признаков в четырёх блоках: состав аудитории по форматам
+          (центрированное логарифмическое преобразование — доли на симплексе нельзя
+          сравнивать напрямую), масштаб, глубина работы и отдача. После
+          стандартизации — понижение размерности до {{ clusters.components }} главных
+          компонент, покрывающих {{ variance }} % дисперсии.
+        </p>
+        <p>
+          Число кластеров выбрано по совокупности силуэта, устойчивости на бутстрэпе,
+          Calinski–Harabasz, Davies–Bouldin и баланса размеров, с правилом парсимонии.
+          На {{ organizations.length }} наблюдениях силуэт растёт почти монотонно по k,
+          поэтому диапазон ограничен сверху, а разбиения с кластером из одного объекта
+          отбрасываются.
+        </p>
+        <p>
+          k-средние и метод Уорда дали одинаковый результат
+          (ARI&nbsp;=&nbsp;{{ clusters.agreement['kmeans~ward'] }}) — структура не
+          артефакт конкретного алгоритма.
+        </p>
+      </Disclosure>
+    </section>
 
-    <div class="card">
-      <h2>Пространство аудиторных моделей</h2>
-      <p class="muted sub">
-        Панели показывают одно и то же пространство главных компонент
-        ({{ clusters.components }} компоненты, {{ variance }} % дисперсии). В каждой панели
-        выделен свой кластер, остальная сеть дана серым как контекст — так пять групп
-        различаются положением, а не оттенком.
+    <section>
+      <h2 class="section-title">{{ plural(clusters.k, 'тип', 'типа', 'типов') }} центров</h2>
+      <div class="types">
+        <article v-for="profile in clusters.profiles" :key="profile.cluster_id" class="card type">
+          <header>
+            <h3>{{ profile.name }}</h3>
+            <span class="count">{{ plural(profile.size, 'центр', 'центра', 'центров') }}</span>
+          </header>
+
+          <ul class="traits">
+            <li v-for="d in profile.distinctive" :key="d.feature">
+              <span class="arrow" :class="d.z >= 0 ? 'up' : 'down'">{{ d.z >= 0 ? '↑' : '↓' }}</span>
+              {{ d.label }}
+            </li>
+          </ul>
+
+          <div v-if="facts(profile)" class="numbers">
+            <div>
+              <b>{{ facts(profile).audience.toLocaleString('ru-RU') }}</b>
+              <span>человек</span>
+            </div>
+            <div>
+              <b>{{ facts(profile).perEvent }}</b>
+              <span>на мероприятие</span>
+            </div>
+            <div>
+              <b>{{ facts(profile).products.toLocaleString('ru-RU') }}</b>
+              <span>работ</span>
+            </div>
+          </div>
+
+          <div class="members">
+            <span v-for="name in profile.member_names" :key="name" class="member">{{ name }}</span>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Карта сети</h2>
+      <p class="lede">
+        Каждая точка — центр. Чем ближе точки, тем более похоже центры работают с
+        аудиторией. На каждой панели подсвечен свой тип, остальная сеть — серым.
       </p>
       <div class="panels">
-        <figure v-for="profile in profiles" :key="profile.cluster_id">
-          <figcaption>
-            <b>{{ profile.name }}</b>
-            <span class="muted"> · {{ profile.size }}</span>
-          </figcaption>
-          <EChart :option="panelOption(profile.cluster_id)" height="170px" />
+        <figure v-for="profile in clusters.profiles" :key="profile.cluster_id">
+          <figcaption>{{ profile.name }}</figcaption>
+          <EChart :option="panelOption(profile.cluster_id)" height="160px" />
         </figure>
       </div>
-    </div>
-
-    <div class="cards">
-      <article v-for="profile in profiles" :key="profile.cluster_id" class="card">
-        <h3>{{ profile.name }}</h3>
-        <p class="muted summary">{{ profile.summary }}</p>
-        <dl>
-          <div v-for="d in profile.distinctive" :key="d.feature">
-            <dt>{{ d.description }}</dt>
-            <dd :class="d.z >= 0 ? 'up' : 'down'">{{ d.z > 0 ? '+' : '' }}{{ d.z }} σ</dd>
-          </div>
-        </dl>
-        <ul class="members">
-          <li v-for="(name, i) in profile.member_names" :key="name">
-            {{ name }}
-            <span class="muted conf">{{ validation.clustering.membership_confidence[profile.members[i]] }}</span>
-          </li>
-        </ul>
-        <p class="muted foot">средний силуэт {{ profile.mean_silhouette }}</p>
-      </article>
-    </div>
+      <Disclosure label="Почему панели, а не один график с пятью цветами">
+        <p>
+          На диаграмме рассеяния читателю приходится различать все пары цветов
+          одновременно. Ни один набор из пяти оттенков не проходит контроль
+          различимости сразу в светлой и тёмной теме — перебор всех сочетаний
+          справочной палитры дал ноль подходящих. Разделение на панели решает задачу
+          без потери информации: тип задаётся положением панели, а не оттенком.
+        </p>
+      </Disclosure>
+    </section>
   </div>
 </template>
 
 <style scoped>
-.stack { display: flex; flex-direction: column; gap: 20px; }
-.sub { font-size: 13px; margin-top: 6px; max-width: 80ch; }
-.checks {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 16px;
-  margin-top: 18px;
-}
-.check-label { font-size: 12px; color: var(--muted); }
-.check-value { font-size: 22px; font-weight: 600; margin: 4px 0; }
-.check-note { font-size: 12px; color: var(--text-secondary); }
-.verdict {
-  margin-top: 18px;
-  padding: 10px 14px;
-  border-left: 2px solid var(--accent);
-  background: var(--accent-wash);
-  border-radius: 0 8px 8px 0;
-  font-size: 13px;
-}
-.panels { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 18px; margin-top: 14px; }
+.stack { display: flex; flex-direction: column; gap: 22px; }
+.lede { font-size: 14px; line-height: 1.6; color: var(--text-secondary); max-width: 74ch; margin-top: 8px; }
+.lede b { color: var(--text-primary); }
+.section-title { margin-bottom: 14px; }
+
+.types { display: grid; grid-template-columns: repeat(auto-fit, minmax(290px, 1fr)); gap: 16px; }
+.type header { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
+.count { font-size: 12px; color: var(--muted); white-space: nowrap; }
+
+.traits { list-style: none; margin: 14px 0 0; padding: 0; display: flex; flex-direction: column; gap: 7px; }
+.traits li { font-size: 13px; color: var(--text-secondary); display: flex; gap: 8px; }
+.arrow { font-weight: 700; font-size: 12px; }
+.arrow.up { color: #0ca30c; }
+.arrow.down { color: var(--muted); }
+
+.numbers { display: flex; gap: 22px; margin-top: 18px; padding: 14px 0; border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }
+.numbers div { display: flex; flex-direction: column; }
+.numbers b { font-size: 17px; font-weight: 650; letter-spacing: -0.01em; }
+.numbers span { font-size: 11px; color: var(--muted); margin-top: 1px; }
+
+.members { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 14px; }
+.member { font-size: 11px; padding: 3px 8px; border: 1px solid var(--border); border-radius: 6px; color: var(--text-secondary); }
+
+.panels { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; margin-top: 16px; }
 figure { margin: 0; }
-figcaption { font-size: 13px; margin-bottom: 4px; }
-.cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; }
-.summary { font-size: 12px; margin: 6px 0 14px; }
-dl { margin: 0 0 14px; display: flex; flex-direction: column; gap: 6px; }
-dl > div { display: flex; justify-content: space-between; gap: 12px; font-size: 12px; }
-dt { color: var(--text-secondary); }
-dd { margin: 0; font-variant-numeric: tabular-nums; white-space: nowrap; }
-dd.up { color: var(--text-primary); }
-dd.down { color: var(--muted); }
-.members { list-style: none; margin: 0; padding: 12px 0 0; border-top: 1px solid var(--border); font-size: 13px; }
-.members li { display: flex; justify-content: space-between; padding: 3px 0; }
-.conf { font-variant-numeric: tabular-nums; font-size: 12px; }
-.foot { font-size: 12px; margin-top: 10px; }
+figcaption { font-size: 12px; font-weight: 600; margin-bottom: 2px; }
 </style>

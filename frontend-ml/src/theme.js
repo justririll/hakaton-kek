@@ -63,6 +63,9 @@ export const SEVERITY = {
 }
 
 export function isDark() {
+  // Функция вызывается при сборке опций графика, в том числе вне браузера
+  // (серверный рендер, тесты). Без DOM считаем тему светлой, а не падаем.
+  if (typeof document === 'undefined' || typeof window === 'undefined') return false
   const stamped = document.documentElement.dataset.theme
   if (stamped === 'dark') return true
   if (stamped === 'light') return false
@@ -110,6 +113,21 @@ export function compact(value) {
   if (abs >= 1e6) return `${(value / 1e6).toFixed(1).replace('.', ',')} млн`
   if (abs >= 1e4) return `${(value / 1e3).toFixed(1).replace('.', ',')} тыс.`
   return new Intl.NumberFormat('ru-RU', { maximumFractionDigits: 2 }).format(value)
+}
+
+/** Склоняет существительное по числу: 1 центр, 2 центра, 5 центров. */
+export function plural(count, one, few, many) {
+  const mod100 = Math.abs(count) % 100
+  const mod10 = mod100 % 10
+  if (mod100 >= 11 && mod100 <= 14) return `${count} ${many}`
+  if (mod10 === 1) return `${count} ${one}`
+  if (mod10 >= 2 && mod10 <= 4) return `${count} ${few}`
+  return `${count} ${many}`
+}
+
+/** Счётная величина: людей и работ не бывает 1 689,9. */
+export function count(value) {
+  return compact(Math.round(value ?? 0))
 }
 
 export function money(value) {
