@@ -63,5 +63,19 @@ uv run --no-dev fastapi run --host 0.0.0.0 --port 8000
 The health endpoint reports that the application is running; add dependency
 checks if the application later requires a database or other services.
 
+## Frontend
+
+The Vue 3 dashboard is in `frontend/`. Run the API first, then start the Vite
+development server:
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+Open http://localhost:5173. During development, Vite proxies `/api` requests to
+FastAPI at `http://127.0.0.1:8000`.
+
 See the [FastAPI CLI documentation](https://fastapi.tiangolo.com/fastapi-cli/)
 and [uv project guide](https://docs.astral.sh/uv/guides/projects/) for more details.

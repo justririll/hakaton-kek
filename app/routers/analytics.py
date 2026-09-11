@@ -77,7 +77,7 @@ async def get_dashboard() -> AnalyticsDashboard:
             Cluster(
                 id=0,
                 name="Держатели Пушкинской карты",
-                tag="Молодежь (14-22)",
+                tag="Молодежь (14-88)",
                 color="#3B82F6",
                 count=480,
                 share_percent=34,
