@@ -377,8 +377,9 @@ def parse_report(path: Path) -> ParsedReport:
     )
 
 
-def parse_directory(directory: Path) -> list[ParsedReport]:
+def parse_directory(directory: Path | str) -> list[ParsedReport]:
     """Разбирает все книги в каталоге, пропуская временные файлы Excel (`~$`)."""
+    directory = Path(directory)
     paths = sorted(
         p
         for p in directory.iterdir()

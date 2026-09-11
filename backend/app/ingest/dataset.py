@@ -236,8 +236,9 @@ def _impute_missing(facts: pd.DataFrame, issues: list[QualityIssue]) -> pd.DataF
     return result
 
 
-def build_dataset(source_dir: Path) -> Dataset:
+def build_dataset(source_dir: Path | str) -> Dataset:
     """Разбирает каталог отчётов и собирает аналитический датасет."""
+    source_dir = Path(source_dir)
     reports: list[ParsedReport] = parse_directory(source_dir)
     if not reports:
         raise FileNotFoundError(f"в каталоге {source_dir} не найдено книг отчётов")

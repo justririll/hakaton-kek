@@ -69,14 +69,14 @@ DATASET/*.xlsx  →  парсер Форм 1 и 2  →  признаки  →  �
 # бэкенд (Python 3.11+, uv)
 cd backend
 uv sync
-uv run uvicorn app.main:app --reload --port 8000
-# → http://127.0.0.1:8000/docs — интерактивная документация API
+uv run uvicorn app.main:app --reload --port 8010
+# → http://127.0.0.1:8010/docs — интерактивная документация API
 
-# демо-интерфейс ML-части (Node 20+)
+# веб-интерфейс дашборда (Node 20+)
 cd frontend-ml
 npm install
 npm run dev
-# → http://127.0.0.1:5173
+# → http://127.0.0.1:5180
 ```
 
 Каталог с отчётами задаётся переменной `CULTURE_PULSE_DATA`
@@ -107,9 +107,18 @@ backend/app/
 └── main.py               HTTP-слой
 
 frontend-ml/src/
-├── theme.js              палитра, прошедшая контроль цветовой различимости
+├── theme.js              палитра, токены и дизайн-система
 ├── api.js                клиент REST
-└── components/           обзор, кластеры, рекомендации, качество данных
+└── components/
+    ├── SectionStory.vue            главное: сводка эффекта и ключевые инсайты
+    ├── SectionDynamics.vue         графики динамики (2025-2026, Q1-Q4), форматы, план-факт
+    ├── SectionFeedback.vue         обратная связь, воронка вовлеченности, радар CSAT и отзывы
+    ├── SectionClusters.vue         5 архетипов аудитории, радарные профили, 2D-карта сети
+    ├── SectionRecommendations.vue  симулятор мероприятий («Что если») и 50 мер
+    ├── SectionOrganizations.vue    витрина 20 учреждений с быстрым поиском и фильтрами
+    ├── SectionQuality.vue          контроль качества данных и аудит отчётности
+    ├── OrgModal.vue                полное досье выбранного учреждения
+    └── ExecutiveSummaryModal.vue   экспресс-отчет для руководства (готов к печати/PDF)
 ```
 
 В репозитории два интерфейса. `frontend/` — основной Vue 3 + TypeScript фронт

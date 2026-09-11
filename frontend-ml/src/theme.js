@@ -62,6 +62,77 @@ export const SEVERITY = {
   info: { color: '#898781', icon: '●', label: 'наблюдение' },
 }
 
+export const CLUSTER_METAS = {
+  0: {
+    id: 0,
+    name: 'Массовые просветители',
+    shortName: 'Просветители',
+    color: '#3b82f6',
+    glow: 'rgba(59, 130, 246, 0.15)',
+    icon: '🏛️',
+    motto: 'Широкий охват и открытые лекции',
+    badge: 'Массовый охват',
+    description: 'Центры с большим потоком участников на общедоступных вводных курсах и открытых встречах.',
+  },
+  1: {
+    id: 1,
+    name: 'Медийные площадки',
+    shortName: 'Медиа-хабы',
+    color: '#ec4899',
+    glow: 'rgba(236, 72, 153, 0.15)',
+    icon: '📢',
+    motto: 'Федеральный PR и выставочные площадки',
+    badge: 'Медиа & PR',
+    description: 'Лидеры по числу публикаций в СМИ и представленности на федеральных культурных событиях.',
+  },
+  2: {
+    id: 2,
+    name: 'Продуктовые мастерские',
+    shortName: 'Мастерские',
+    color: '#10b981',
+    glow: 'rgba(16, 185, 129, 0.15)',
+    icon: '🎨',
+    motto: 'Высокая конверсия в готовые арт-продукты',
+    badge: 'Арт-результат',
+    description: 'Инкубаторы полного цикла: почти каждый участник создает реальную работу или прототип.',
+  },
+  3: {
+    id: 3,
+    name: 'Открытые бесплатные площадки',
+    shortName: 'Городские хабы',
+    color: '#f59e0b',
+    glow: 'rgba(245, 158, 11, 0.15)',
+    icon: '🌟',
+    motto: 'Социальная миссия и городские сообщества',
+    badge: 'Социальные хабы',
+    description: 'Пространства с нулевым барьером входа и бесплатными сервисами для творческих команд.',
+  },
+  4: {
+    id: 4,
+    name: 'Профессиональные академии',
+    shortName: 'Академии',
+    color: '#8b5cf6',
+    glow: 'rgba(139, 92, 246, 0.15)',
+    icon: '🎓',
+    motto: 'Глубокие программы ДПО и монетизация',
+    badge: 'Проф. ДПО',
+    description: 'Длительные программы повышения квалификации, переподготовка и стабильная платная модель.',
+  },
+}
+
+export function getClusterMeta(idOrName) {
+  if (typeof idOrName === 'number') {
+    return CLUSTER_METAS[idOrName] || { name: `Кластер ${idOrName}`, color: '#3b82f6', icon: '🏷️' }
+  }
+  const byName = Object.values(CLUSTER_METAS).find((c) => c.name === idOrName)
+  return byName || { name: String(idOrName), color: '#3b82f6', icon: '🏷️' }
+}
+
+export function percent(value, decimals = 0) {
+  if (value === null || value === undefined || Number.isNaN(value)) return '—'
+  return `${(value * 100).toFixed(decimals).replace('.', ',')}%`
+}
+
 export function isDark() {
   const stamped = document.documentElement.dataset.theme
   if (stamped === 'dark') return true
