@@ -4,7 +4,7 @@ import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
 // Точечный импорт вместо всего пакета: в дашборде используются только
 // столбиковые и точечные диаграммы, полный набор тянет лишний мегабайт.
 import * as echarts from 'echarts/core'
-import { BarChart, ScatterChart, LineChart, RadarChart, PieChart } from 'echarts/charts'
+import { BarChart, ScatterChart, LineChart, RadarChart, PieChart, FunnelChart } from 'echarts/charts'
 import {
   GridComponent,
   LegendComponent,
@@ -23,6 +23,7 @@ echarts.use([
   LineChart,
   RadarChart,
   PieChart,
+  FunnelChart,
   GridComponent,
   LegendComponent,
   MarkLineComponent,

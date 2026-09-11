@@ -128,6 +128,14 @@ const filteredReviews = computed(() => {
 /** Воронка вовлеченности участников */
 const funnelOption = computed(() => {
   const p = palette()
+  const aud = props.overview?.audience_total || 4193
+  const res = props.overview?.residents_total || 3981
+  const prod = props.overview?.products_total || 2074
+  const pubs = props.overview?.publications_total || 768
+  const fed = props.overview?.federal_events_total || 78
+
+  const resPct = Math.round((res / aud) * 100)
+  const prodPct = Math.round((prod / aud) * 100)
 
   return {
     ...baseOption(),
@@ -136,16 +144,16 @@ const funnelOption = computed(() => {
       {
         name: "Воронка вовлеченности",
         type: "funnel",
-        left: "8%",
-        top: 20,
-        bottom: 20,
-        width: "84%",
+        left: "6%",
+        top: 16,
+        bottom: 16,
+        width: "88%",
         min: 0,
-        max: 4200,
-        minSize: "16%",
+        max: aud,
+        minSize: "22%",
         maxSize: "100%",
         sort: "descending",
-        gap: 3,
+        gap: 4,
         label: {
           show: true,
           position: "inside",
@@ -157,13 +165,14 @@ const funnelOption = computed(() => {
         itemStyle: {
           borderColor: p.surface,
           borderWidth: 2,
+          borderRadius: 4,
         },
         data: [
-          { value: 4193, name: "Обучено: 4 193 чел.", itemStyle: { color: "#2563eb" } },
-          { value: 3981, name: "Резиденты: 3 981 чел. (95%)", itemStyle: { color: "#3b82f6" } },
-          { value: 2074, name: "Арт-продукты: 2 074 раб. (50%)", itemStyle: { color: "#10b981" } },
-          { value: 768, name: "Публикации в СМИ: 768", itemStyle: { color: "#f59e0b" } },
-          { value: 350, name: "Федеральные показы: 78", itemStyle: { color: "#8b5cf6" } },
+          { value: aud, name: `1. Первичный курс: ${compact(aud)} чел.`, itemStyle: { color: "#2563eb" } },
+          { value: Math.round(aud * 0.82), name: `2. Резидентство: ${compact(res)} чел. (${resPct}%)`, itemStyle: { color: "#3b82f6" } },
+          { value: Math.round(aud * 0.62), name: `3. Арт-продукты: ${compact(prod)} ед. (${prodPct}%)`, itemStyle: { color: "#10b981" } },
+          { value: Math.round(aud * 0.44), name: `4. Освещение в СМИ: ${compact(pubs)} публ.`, itemStyle: { color: "#f59e0b" } },
+          { value: Math.round(aud * 0.28), name: `5. Федеральный PR: ${compact(fed)} событий`, itemStyle: { color: "#8b5cf6" } },
         ],
       },
     ],
