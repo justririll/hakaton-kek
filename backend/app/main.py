@@ -359,4 +359,28 @@ def reload_analytics() -> dict:
     return {"status": "ok", "build_seconds": _state["analytics"].build_seconds}
 
 
+from app.ai import get_network_ai_summary, get_org_ai_summary, GEMINI_MODEL
+
+
+@api.get("/ai/status", summary="Статус модуля генеративного ИИ Gemini")
+def get_ai_status() -> dict:
+    return {
+        "enabled": True,
+        "model": GEMINI_MODEL,
+        "provider": "Google Gemini",
+    }
+
+
+@api.get("/ai/summary", summary="Исполнительское резюме всей сети (Gemini AI)")
+def get_ai_summary(refresh: bool = Query(False, description="Принудительный пересчет")) -> dict:
+    state = analytics()
+    return get_network_ai_summary(state, force_refresh=refresh)
+
+
+@api.get("/ai/org/{org_id}", summary="Персональный разбор центра культуры (Gemini AI)")
+def get_ai_org_summary(org_id: str, refresh: bool = Query(False, description="Принудительный пересчет")) -> dict:
+    state = analytics()
+    return get_org_ai_summary(org_id, state, force_refresh=refresh)
+
+
 app.include_router(api)

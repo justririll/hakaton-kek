@@ -148,6 +148,20 @@ defineProps({
       <line x1="12" y1="22.08" x2="12" y2="12" />
     </g>
 
+    <!-- sparkles / ai -->
+    <g v-else-if="name === 'sparkles'">
+      <path d="m12 3-1.9 5.8a2 2 0 0 1-1.3 1.3L3 12l5.8 1.9a2 2 0 0 1 1.3 1.3L12 21l1.9-5.8a2 2 0 0 1 1.3-1.3L21 12l-5.8-1.9a2 2 0 0 1-1.3-1.3Z" />
+      <path d="M19 3v4M21 5h-4M5 19v2M6 20H4" />
+    </g>
+
+    <!-- refresh-cw -->
+    <g v-else-if="name === 'refresh-cw'">
+      <path d="M21 2v6h-6" />
+      <path d="M3 12a9 9 0 0 1 15-6.7L21 8" />
+      <path d="M3 22v-6h6" />
+      <path d="M21 12a9 9 0 0 1-15 6.7L3 16" />
+    </g>
+
     <!-- info -->
     <g v-else>
       <circle cx="12" cy="12" r="10" />

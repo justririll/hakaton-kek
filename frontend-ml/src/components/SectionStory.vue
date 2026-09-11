@@ -7,6 +7,7 @@
 import { computed } from "vue"
 import Icon from "./Icon.vue"
 import Disclosure from "./Disclosure.vue"
+import AiBriefCard from "./AiBriefCard.vue"
 import { compact, money, getClusterMeta } from "../theme"
 
 const props = defineProps({
@@ -133,6 +134,9 @@ const highlights = computed(() => {
         </div>
       </div>
     </section>
+
+    <!-- Исполнительское AI-резюме сети (Gemini 3.6 Flash) -->
+    <AiBriefCard compact />
 
     <!-- 3 Шага работы платформы -->
     <section class="card">

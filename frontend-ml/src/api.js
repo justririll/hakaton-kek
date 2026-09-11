@@ -23,4 +23,7 @@ export const api = {
   anomalies: (params) => get('/anomalies', params),
   quality: () => get('/quality'),
   benchmark: (metric) => get(`/benchmark/${metric}`),
+  aiStatus: () => get('/ai/status'),
+  aiSummary: (refresh = false) => get('/ai/summary', refresh ? { refresh: 'true' } : undefined),
+  aiOrgSummary: (orgId, refresh = false) => get(`/ai/org/${encodeURIComponent(orgId)}`, refresh ? { refresh: 'true' } : undefined),
 }

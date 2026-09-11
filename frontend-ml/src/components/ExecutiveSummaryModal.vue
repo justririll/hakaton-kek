@@ -1,6 +1,7 @@
 <script setup>
 import { onMounted, onBeforeUnmount } from "vue"
 import Icon from "./Icon.vue"
+import AiBriefCard from "./AiBriefCard.vue"
 import { compact, money, percent } from "../theme"
 
 const props = defineProps({
@@ -49,6 +50,9 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown))
             Отчётный период: 9 месяцев 2026 г. • Охват: {{ overview.organizations }} организаций высшего образования в сфере культуры
           </p>
         </div>
+
+        <!-- Генеративное исполнительское резюме Gemini 3.6 Flash -->
+        <AiBriefCard :compact="false" />
 
         <div class="report-section">
           <h3>1. Ключевые результаты сети</h3>
