@@ -103,7 +103,10 @@ const aiSections = computed(() => {
   }
   return rawSections.map((sec) => {
     const lines = sec.trim().split("\n")
-    const title = lines[0].replace(/^[\d.]+\s*/, "").trim()
+    // Снимаем только настоящую нумерацию раздела («1. », «2) ») — прежний
+    // шаблон срезал и одиночную цифру, превращая «3 практических шага»
+    // в «практических шага».
+    const title = lines[0].replace(/^\d+[.)]\s+/, "").trim()
     const rest = lines.slice(1).join("\n").trim()
     const items = []
     const paras = []
@@ -111,7 +114,9 @@ const aiSections = computed(() => {
       const trimmed = line.trim()
       if (!trimmed || trimmed === "---") continue
       if (trimmed.startsWith("-") || trimmed.startsWith("*") || /^\d+\./.test(trimmed)) {
-        items.push(trimmed.replace(/^[-*]\s+|\d+\.\s*/, ""))
+        // Обе ветки привязаны к началу: без якоря второй вариант срезал бы
+        // первое попавшееся число с точкой в середине строки.
+        items.push(trimmed.replace(/^(?:[-*]\s+|\d+[.)]\s*)/, ""))
       } else {
         paras.push(trimmed)
       }
@@ -137,6 +142,22 @@ onMounted(() => {
   loadAiOrg(false)
 })
 onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown))
+// Единица измерения эффекта словами. money() уже печатает «₽», поэтому для
+// выручки символ из impact_unit не добавляется — иначе выходит «385 800 ₽ ₽».
+const IMPACT_WORD = {
+  participants: "участников",
+  products: "арт-работ",
+  revenue: "объёма услуг",
+  publications: "публикаций",
+  formats: "мероприятий",
+}
+
+function impactText(rec) {
+  const value = rec.impact_metric === "revenue" ? money(rec.impact_value) : compact(rec.impact_value)
+  const unit = IMPACT_WORD[rec.impact_metric] || rec.impact_unit || ""
+  return `${value} ${unit}`.trim()
+}
+
 </script>
 
 <template>
@@ -312,10 +333,7 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown))
             <div v-for="rec in orgRecs" :key="rec.rec_id" class="rec-item">
               <div class="rec-top">
                 <span class="badge badge-accent">Приоритет {{ rec.priority }}/100</span>
-                <strong class="rec-impact">
-                  +{{ rec.impact_metric === 'revenue' ? money(rec.impact_value) : compact(rec.impact_value) }}
-                  {{ rec.impact_unit }}
-                </strong>
+                <strong class="rec-impact">+{{ impactText(rec) }}</strong>
               </div>
               <p class="rec-action"><b>Действие:</b> {{ rec.action }}</p>
               <p class="rec-rationale muted"><b>Обоснование:</b> {{ rec.rationale }}</p>

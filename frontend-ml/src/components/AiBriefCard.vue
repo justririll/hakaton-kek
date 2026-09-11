@@ -57,7 +57,10 @@ const parsedSections = computed(() => {
 
   return rawSections.map((sec) => {
     const lines = sec.trim().split("\n")
-    const title = lines[0].replace(/^[\d.]+\s*/, "").trim()
+    // Снимаем только настоящую нумерацию раздела («1. », «2) ») — прежний
+    // шаблон срезал и одиночную цифру, превращая «3 практических шага»
+    // в «практических шага».
+    const title = lines[0].replace(/^\d+[.)]\s+/, "").trim()
     const rest = lines.slice(1).join("\n").trim()
 
     const items = []
@@ -67,7 +70,9 @@ const parsedSections = computed(() => {
       const trimmed = line.trim()
       if (!trimmed || trimmed === "---") continue
       if (trimmed.startsWith("-") || trimmed.startsWith("*") || /^\d+\./.test(trimmed)) {
-        items.push(trimmed.replace(/^[-*]\s+|\d+\.\s*/, ""))
+        // Обе ветки привязаны к началу: без якоря второй вариант срезал бы
+        // первое попавшееся число с точкой в середине строки.
+        items.push(trimmed.replace(/^(?:[-*]\s+|\d+[.)]\s*)/, ""))
       } else {
         paras.push(trimmed)
       }
