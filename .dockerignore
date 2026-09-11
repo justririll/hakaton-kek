@@ -2,9 +2,12 @@
 .gitignore
 .env
 node_modules
-frontend-ml/node_modules
+frontend/node_modules
 # Витрина собирается внутри образа, готовый dist в контекст тянуть не нужно.
-frontend-ml/dist
+frontend/dist
+*.tsbuildinfo
+# Слайды защиты в образ не нужны — это отдельный файл, а не часть витрины.
+presentation
 # Сертификаты живут на сервере и монтируются томом, а не копируются в образ.
 certbot
 __pycache__
