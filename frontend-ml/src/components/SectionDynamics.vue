@@ -24,63 +24,119 @@ const sortedOrgs = computed(() =>
   [...props.organizations].sort((a, b) => b.audience_total - a.audience_total),
 )
 
-/** Данные траектории динамики для 4 метрик */
-const METRICS_CONFIG = {
-  audience: {
-    label: "Посещаемость",
-    unit: "чел.",
-    base2025: 3850,
-    q1: 1150,
-    q2: 2580,
-    q3: 4193,
-    q4Forecast: 5590,
-    target: 5800,
-    formatter: (v) => compact(v) + " чел.",
-    growthText: "+18.4% к 2025 г.",
-  },
-  formats: {
-    label: "Мероприятия",
-    unit: "ед.",
-    base2025: 279,
-    q1: 85,
-    q2: 192,
-    q3: 307,
-    q4Forecast: 409,
-    target: 338,
-    formatter: (v) => compact(v) + " ед.",
-    growthText: "+21.2% к 2025 г.",
-  },
-  products: {
-    label: "Арт-продукты",
-    unit: "раб.",
-    base2025: 1420,
-    q1: 510,
-    q2: 1220,
-    q3: 2074,
-    q4Forecast: 2765,
-    target: 2500,
-    formatter: (v) => compact(v) + " шт.",
-    growthText: "+46.1% к 2025 г.",
-  },
-  revenue: {
-    label: "Платные услуги",
-    unit: "₽",
-    base2025: 19800000,
-    q1: 6400000,
-    q2: 15200000,
-    q3: 25038688,
-    q4Forecast: 33385000,
-    target: 30000000,
-    formatter: (v) => money(v),
-    growthText: "+26.5% к 2025 г.",
-  },
+/** Форматирование значения по показателю. */
+const FORMATTERS = {
+  audience: (v) => compact(Math.round(v)) + " чел.",
+  formats: (v) => compact(Math.round(v)) + " ед.",
+  products: (v) => compact(Math.round(v)) + " шт.",
+  revenue: (v) => money(v),
 }
 
-/** Опция интерактивного графика динамики */
+/**
+ * Динамика приходит из API и содержит ровно то, что есть в отчётности.
+ * База 2025 года заполнена только там, где её заполнили организации; где её
+ * нет — показываем это прямо, а не подставляем правдоподобное число.
+ *
+ * Где база есть, и база, и факт берутся по одному и тому же кругу центров
+ * (`fact_comparable`), иначе сравнивались бы разные совокупности.
+ */
+const metrics = computed(() => {
+  const out = {}
+  for (const row of props.overview?.dynamics || []) {
+    const months = row.reported_months || 9
+    const hasBase = row.baseline_2025 !== null && row.baseline_2025 !== undefined
+    const factPoint = hasBase ? row.fact_comparable : row.fact_ytd
+    out[row.key] = {
+      ...row,
+      hasBase,
+      factPoint,
+      forecastPoint: factPoint * (12 / months),
+      formatter: FORMATTERS[row.key] || ((v) => compact(v)),
+    }
+  }
+  return out
+})
+
+const activeCfg = computed(() => metrics.value[activeMetric.value] || null)
+
+// Мероприятия — единственный показатель с базой 2025 года, на нём строится вывод раздела.
+const formatsCfg = computed(() => metrics.value.formats || null)
+
+/** Подпись темпа: в годовом выражении либо честное «сравнивать не с чем». */
+function growthText(cfg) {
+  if (!cfg) return ""
+  if (!cfg.hasBase) return "базы 2025 года в отчётности нет"
+  const sign = cfg.growth_year >= 0 ? "+" : ""
+  return `${sign}${(cfg.growth_year * 100).toFixed(1)}% к 2025 г. (в годовом выражении)`
+}
+
+const growthLabel = computed(() => growthText(activeCfg.value))
+
+/** График динамики: факт 2025 → факт отчётного периода → проекция года. */
 const trajectoryChartOption = computed(() => {
   const p = palette()
-  const cfg = METRICS_CONFIG[activeMetric.value]
-  const quarters = ["2025 (Факт)", "I кв. 2026", "II кв. 2026", "III кв. (9 мес.)", "IV кв. (Прогноз)"]
+  const cfg = activeCfg.value
+  if (!cfg) return baseOption()
+
+  const factLabel = `${cfg.reported_months} мес. 2026 (факт)`
+  const axis = cfg.hasBase
+    ? ["2025 (факт года)", factLabel, "2026 (проекция года)"]
+    : [factLabel, "2026 (проекция года)"]
+
+  const factSeries = cfg.hasBase ? [cfg.baseline_2025, cfg.factPoint, null] : [cfg.factPoint, null]
+  const forecastSeries = cfg.hasBase
+    ? [null, cfg.factPoint, cfg.forecastPoint]
+    : [cfg.factPoint, cfg.forecastPoint]
+
+  const pointLabel = {
+    show: true,
+    position: "top",
+    color: p.textSecondary,
+    fontSize: 11,
+    fontWeight: 600,
+    formatter: ({ value }) => (value === null || value === undefined ? "" : cfg.formatter(value)),
+  }
+
+  const factLine = {
+    name: "Факт отчётности",
+    type: "line",
+    smooth: false,
+    symbolSize: 9,
+    label: pointLabel,
+    itemStyle: { color: p.accent },
+    lineStyle: { width: 2.5, color: p.accent },
+    areaStyle: {
+      color: {
+        type: "linear",
+        x: 0,
+        y: 0,
+        x2: 0,
+        y2: 1,
+        colorStops: [
+          { offset: 0, color: p.accent + "40" },
+          { offset: 1, color: p.accent + "05" },
+        ],
+      },
+    },
+    data: factSeries,
+  }
+
+  // Цель года задана Формой 1 только для числа мероприятий; для остальных
+  // показателей планового значения не существует и линии цели быть не должно.
+  if (cfg.target_2026) {
+    factLine.markLine = {
+      silent: true,
+      symbol: "none",
+      label: {
+        formatter: `Цель года: ${cfg.formatter(cfg.target_2026)}`,
+        position: "insideEndTop",
+        color: p.muted,
+        fontSize: 11,
+      },
+      lineStyle: { color: "#f59e0b", width: 1.5, type: "dashed" },
+      data: [{ yAxis: cfg.target_2026 }],
+    }
+  }
 
   return {
     ...baseOption(),
@@ -105,12 +161,15 @@ const trajectoryChartOption = computed(() => {
       itemGap: 10,
       textStyle: { color: p.textSecondary, fontSize: 10 },
     },
-    grid: { left: 8, right: 20, top: 44, bottom: 15, containLabel: true },
+    // Точек мало и boundaryGap выключен, поэтому крайние подписи упираются в
+    // границы области построения — отсюда увеличенные поля слева и справа.
+    grid: { left: 76, right: 62, top: 56, bottom: 15, containLabel: true },
     xAxis: {
       type: "category",
       boundaryGap: false,
-      data: quarters,
+      data: axis,
       ...axisStyle(),
+      axisLabel: { color: p.muted, fontSize: 11, hideOverlap: false },
     },
     yAxis: {
       type: "value",
@@ -118,57 +177,33 @@ const trajectoryChartOption = computed(() => {
       axisLabel: {
         color: p.muted,
         fontSize: 11,
-        formatter: (v) => cfg.unit === "₽" ? money(v) : compact(v),
+        formatter: (v) => (cfg.unit === "₽" ? money(v) : compact(v)),
       },
     },
     series: [
+      factLine,
       {
-        name: "Фактическая динамика",
+        name: "Проекция года по текущему темпу",
         type: "line",
-        smooth: true,
-        symbolSize: 7,
-        itemStyle: { color: p.accent },
-        lineStyle: { width: 2.5, color: p.accent },
-        areaStyle: {
-          color: {
-            type: "linear",
-            x: 0,
-            y: 0,
-            x2: 0,
-            y2: 1,
-            colorStops: [
-              { offset: 0, color: p.accent + "40" },
-              { offset: 1, color: p.accent + "05" },
-            ],
-          },
-        },
-        data: [cfg.base2025, cfg.q1, cfg.q2, cfg.q3, null],
-        markLine: {
-          silent: true,
-          symbol: "none",
-          label: {
-            formatter: `Цель года: ${cfg.formatter(cfg.target)}`,
-            position: "insideEndTop",
-            color: p.muted,
-            fontSize: 11,
-          },
-          lineStyle: { color: "#f59e0b", width: 1.5, type: "dashed" },
-          data: [{ yAxis: cfg.target }],
-        },
-      },
-      {
-        name: "Проекция IV кв. (Run-rate)",
-        type: "line",
-        smooth: true,
+        smooth: false,
         symbol: "circle",
-        symbolSize: 8,
+        symbolSize: 9,
+        // Проекция начинается в той же точке, что и факт: подписывать её дважды
+        // не нужно, поэтому у пунктира подписан только конец.
+        label: {
+          ...pointLabel,
+          position: "bottom",
+          formatter: ({ value, dataIndex }) =>
+            dataIndex === forecastSeries.length - 1 && value !== null ? cfg.formatter(value) : "",
+        },
         itemStyle: { color: "#10b981" },
         lineStyle: { width: 2, type: "dashed", color: "#10b981" },
-        data: [null, null, null, cfg.q3, cfg.q4Forecast],
+        data: forecastSeries,
       },
     ],
   }
 })
+
 
 /** Состав аудитории по форматам (составные бары) */
 const mixOption = computed(() => {
@@ -331,9 +366,19 @@ const planOption = computed(() => {
     <div class="takeaway-box">
       <div class="takeaway-text">
         <strong>Вывод раздела:</strong>
-        Сеть показывает уверенный темп (+18.4% по аудитории и +46.1% по готовым арт-работам к прошлому году).
-        При этом <b>7 из 20 учреждений</b> находятся в зоне риска срыва годового плана из-за отставания во II квартале.
-        Для выполнения плана в IV квартале им необходимо ускорить частоту проведения мероприятий в 1.8 раза.
+        <template v-if="formatsCfg">
+          Единственный показатель, у которого в отчётности есть база 2025 года, — число мероприятий:
+          <b>{{ formatsCfg.fact_comparable }} ед.</b> за {{ formatsCfg.reported_months }} месяцев против
+          <b>{{ formatsCfg.baseline_2025 }} ед.</b> за весь 2025 год по одному и тому же кругу
+          {{ formatsCfg.baseline_orgs }} центров — это {{ growthText(formatsCfg) }}.
+          Проекция года — <b>{{ formatsCfg.formatter(formatsCfg.forecastPoint) }}</b>
+          при годовой цели <b>{{ formatsCfg.formatter(formatsCfg.target_2026) }}</b>,
+          заданной строкой 1 Формы 1: сеть выходит на план впритык.
+        </template>
+        При этом <b>{{ overview.plan_at_risk }} из {{ overview.organizations }} учреждений</b> прогнозно
+        не добирают собственную цель года и требуют адресной поддержки в IV квартале.
+        По посещаемости, арт-продуктам и платным услугам базы 2025 года в отчётности нет —
+        темп к прошлому году по ним не считается.
       </div>
     </div>
 
@@ -342,7 +387,7 @@ const planOption = computed(() => {
       <StatTile
         label="Посещаемость за 9 мес."
         :value="compact(overview.audience_total)"
-        note="человек (+18.4% к 2025 г.)"
+        note="человек за отчётный период (базы 2025 г. в отчётности нет)"
         hero
       />
       <StatTile
@@ -368,7 +413,7 @@ const planOption = computed(() => {
       <StatTile
         label="План года под риском"
         :value="`${overview.plan_at_risk} из ${overview.organizations}`"
-        note="отстают от равномерного графика 75%"
+        note="прогноз года ниже цели Формы 1"
       />
     </div>
 
@@ -376,14 +421,16 @@ const planOption = computed(() => {
     <div class="card">
       <div class="section-header-row">
         <div>
-          <h2>Динамика показателей сети (2025 → 2026 + прогноз IV кв.)</h2>
+          <h2>Динамика показателей сети</h2>
           <p class="muted sub">
-            Сравнение базового уровня 2025 года, поквартальной траектории и ожидаемого выхода на конец года.
+            Отчётность даёт один срез за {{ activeCfg?.reported_months || 9 }} месяцев и базу 2025 года там,
+            где организации её заполнили. Промежуточных кварталов в формах нет, поэтому на графике только
+            наблюдаемые точки и проекция года по текущему темпу.
           </p>
         </div>
         <div class="metric-tabs">
           <button
-            v-for="(cfg, key) in METRICS_CONFIG"
+            v-for="(cfg, key) in metrics"
             :key="key"
             :class="{ active: activeMetric === key }"
             @click="activeMetric = key"
@@ -393,13 +440,18 @@ const planOption = computed(() => {
         </div>
       </div>
 
-      <div class="metric-meta-bar">
-        <span class="badge badge-accent">{{ METRICS_CONFIG[activeMetric].growthText }}</span>
+      <div v-if="activeCfg" class="metric-meta-bar">
+        <span class="badge" :class="activeCfg.hasBase ? 'badge-accent' : 'badge-neutral'">{{ growthLabel }}</span>
         <span class="muted">
-          Факт 9 месяцев: <b>{{ METRICS_CONFIG[activeMetric].formatter(METRICS_CONFIG[activeMetric].q3) }}</b>
+          Факт {{ activeCfg.reported_months }} месяцев: <b>{{ activeCfg.formatter(activeCfg.fact_ytd) }}</b>
         </span>
         <span class="muted">
-          Прогноз года (Run-rate): <b>{{ METRICS_CONFIG[activeMetric].formatter(METRICS_CONFIG[activeMetric].q4Forecast) }}</b>
+          Проекция года: <b>{{ activeCfg.formatter(activeCfg.run_rate_year) }}</b>
+        </span>
+        <span v-if="activeCfg.hasBase" class="muted">
+          На графике — сопоставимый круг
+          <b>{{ activeCfg.baseline_orgs }} из {{ overview.organizations }}</b> центров:
+          <b>{{ activeCfg.formatter(activeCfg.fact_comparable) }}</b>
         </span>
       </div>
 
@@ -455,7 +507,9 @@ const planOption = computed(() => {
         <div>
           <h2>Выполнение годового плана по организациям</h2>
           <p class="muted sub">
-            Цель — прирост числа мероприятий к 2025 году. Порог 75% за 9 месяцев отделяет норму от отставания.
+            Цель — прирост числа мероприятий к 2025 году из строки 1 Формы 1. Статус определяется не
+            текущим процентом, а прогнозом года по нынешнему темпу: выше цели — опережение, ниже 85 % от
+            неё — срыв.
           </p>
         </div>
         <div class="status-legend">
@@ -500,6 +554,7 @@ const planOption = computed(() => {
   border-radius: 8px;
 }
 
+.two-col-grid > * { min-width: 0; }
 .two-col-grid {
   display: grid;
   grid-template-columns: 1.4fr 1fr;

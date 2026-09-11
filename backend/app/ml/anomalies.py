@@ -257,8 +257,17 @@ def detect(
 
 
 def flagged_orgs(anomalies: pd.DataFrame) -> set[str]:
-    """Организации, чьи данные требуют проверки до принятия решений по ним."""
+    """Организации, чьи данные требуют проверки до принятия решений по ним.
+
+    Учитываются только внутренние противоречия отчёта: цифры в разных строках
+    одной книги не сходятся друг с другом. Выброс сюда не входит — крупный
+    центр, отличающийся от медианы в пять робастных отклонений, не ошибается,
+    он просто крупный, и вычёркивать его резерв было бы подлогом наоборот.
+    """
     if anomalies.empty:
         return set()
-    serious = anomalies[anomalies["severity"].isin({"error", "warning"})]
+    serious = anomalies[
+        (anomalies["kind"] == "inconsistency")
+        & (anomalies["severity"].isin({"error", "warning"}))
+    ]
     return set(serious["org_id"].astype(str))

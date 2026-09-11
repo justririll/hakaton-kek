@@ -7,7 +7,7 @@
 import { computed, ref } from "vue"
 import Disclosure from "./Disclosure.vue"
 import EChart from "./EChart.vue"
-import { axisStyle, baseOption, compact, palette, getClusterMeta, CLUSTER_METAS } from "../theme"
+import { axisStyle, baseOption, compact, palette, getClusterMeta, CLUSTER_METAS, plural } from "../theme"
 
 const props = defineProps({
   clusters: { type: Object, required: true },
@@ -159,7 +159,11 @@ const scatterMapOption = computed(() => {
       <div class="takeaway-text">
         <strong>Зачем нужна кластеризация аудитории:</strong>
         Нельзя оценивать профильное хореографическое училище на 20 человек и многотысячный институт культуры одной линейкой.
-        Машинное обучение разделило 20 центров на <b>5 архетипов</b> на основе состава аудитории, формата обучения и глубины работы.
+        Машинное обучение разделило {{ organizations.length }}
+        {{ plural(organizations.length, ['центр', 'центра', 'центров']) }} на
+        <b>{{ clusters.profiles?.length || 0 }}
+        {{ plural(clusters.profiles?.length || 0, ['архетип', 'архетипа', 'архетипов']) }}</b>
+        на основе состава аудитории, формата обучения и глубины работы.
         Каждый центр сравнивается исключительно со своими коллегами по модели — разрыв между ними и лучшими и есть реальный резерв роста.
       </div>
     </div>
@@ -179,7 +183,7 @@ const scatterMapOption = computed(() => {
       >
         <div class="arch-top">
           <span class="arch-code-badge">{{ getClusterMeta(profile.cluster_id).code }}</span>
-          <span class="arch-count">{{ profile.size }} центров</span>
+          <span class="arch-count">{{ profile.size }} {{ plural(profile.size, ['центр', 'центра', 'центров']) }}</span>
         </div>
         <h3 class="arch-title">{{ profile.name }}</h3>
         <span class="arch-badge">{{ getClusterMeta(profile.cluster_id).badge }}</span>

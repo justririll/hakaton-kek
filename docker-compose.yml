@@ -7,8 +7,10 @@ services:
     restart: unless-stopped
     environment:
       - CULTURE_PULSE_DATA=/app/DATASET
-      - GEMINI_API_KEY=AQ.Ab8RN6K8-sg6eZ2ru31kJofFpAki3j3bjOZg_uIkZLigNfAHKw
-      - GEMINI_MODEL=gemini-flash-lite-latest
+      # Ключ берётся из .env рядом с этим файлом и в репозиторий не попадает.
+      # Без ключа AI-слой выключается, остальная витрина работает как обычно.
+      - GEMINI_API_KEY=${GEMINI_API_KEY:-}
+      - GEMINI_MODEL=${GEMINI_MODEL:-gemini-flash-lite-latest}
     expose:
       - "8010"
     ports:

@@ -40,30 +40,31 @@ const onlyImportant = ref(false)
 const searchQuery = ref("")
 
 // Параметры симулятора «Что если»
-const simAttendanceBoost = ref(20) // %
-const simConversionBoost = ref(15) // %
-const simMonetizeBoost = ref(10) // %
+/**
+ * Симулятор отвечает на один вопрос: «а если закрыть не весь найденный разрыв,
+ * а его часть?». Ползунок — доля разрыва, которую центр реально дотягивает до
+ * уровня соседей по архетипу; 100 % означает выход на медиану своей модели.
+ *
+ * Разрыв дальше медианы не экстраполируется: за пределами наблюдаемого резерва
+ * никаких данных нет, и «+50 % сверху» было бы фантазией с точной цифрой.
+ */
+const simAttendanceShare = ref(100) // % закрытия разрыва по наполняемости
+const simConversionShare = ref(100) // % закрытия разрыва по конверсии
+const simMonetizeShare = ref(100) // % закрытия разрыва по платным услугам
 
-const simulatedImpact = computed(() => {
-  const baseParticipants = props.summary?.impact?.participants?.total || 1689
-  const baseProducts = props.summary?.impact?.products?.total || 1411
-  const baseRevenue = props.summary?.impact?.revenue?.total || 9669800
+// Базой служит подтверждённый резерв — без центров с расхождениями в отчёте.
+const reserve = computed(() => props.summary?.impact_verified || {})
 
-  const extraParticipants = Math.round(baseParticipants * (simAttendanceBoost.value / 20))
-  const extraProducts = Math.round(baseProducts * (simConversionBoost.value / 15))
-  const extraRevenue = Math.round(baseRevenue * (simMonetizeBoost.value / 10))
-
-  return {
-    participants: extraParticipants,
-    products: extraProducts,
-    revenue: extraRevenue,
-  }
-})
+const simulatedImpact = computed(() => ({
+  participants: Math.round((reserve.value.participants?.total || 0) * (simAttendanceShare.value / 100)),
+  products: Math.round((reserve.value.products?.total || 0) * (simConversionShare.value / 100)),
+  revenue: Math.round((reserve.value.revenue?.total || 0) * (simMonetizeShare.value / 100)),
+}))
 
 function resetSim() {
-  simAttendanceBoost.value = 20
-  simConversionBoost.value = 15
-  simMonetizeBoost.value = 10
+  simAttendanceShare.value = 100
+  simConversionShare.value = 100
+  simMonetizeShare.value = 100
 }
 
 function weight(priority) {
@@ -100,12 +101,15 @@ const filtered = computed(() => {
     <div class="takeaway-box">
       <div class="takeaway-text">
         <strong>Программирование мероприятий на основе данных:</strong>
-        Каждая из <b>50 рекомендаций</b> сформирована сопоставлением центра с соратниками по архетипу.
-        Если соседи по кластеру уже собирают больше людей или производят больше арт-продуктов в тех же условиях —
-        это доказанный резерв. Совокупный потенциал сети:
-        <b>+{{ compact(summary.impact?.participants?.total) }} участников</b>,
-        <b>+{{ compact(summary.impact?.products?.total) }} арт-продуктов</b> и
-        <b>+{{ money(summary.impact?.revenue?.total) }} выручки</b>.
+        Каждая из <b>{{ summary.total }} рекомендаций</b> сформирована сопоставлением центра с соседями
+        по архетипу. Если соседи по кластеру уже собирают больше людей или производят больше
+        арт-продуктов в тех же условиях — это наблюдаемый разрыв, а не гипотеза.
+        Подтверждённый резерв сети:
+        <b>+{{ compact(Math.round(summary.impact_verified?.participants?.total || 0)) }} участников</b>,
+        <b>+{{ compact(Math.round(summary.impact_verified?.products?.total || 0)) }} арт-продуктов</b> и
+        <b>+{{ money(summary.impact_verified?.revenue?.total) }} выручки</b>
+        — без {{ summary.flagged_orgs?.length || 0 }} центров, у которых цифры внутри отчёта
+        противоречат друг другу.
       </div>
     </div>
 
@@ -115,36 +119,38 @@ const filtered = computed(() => {
         <div class="sim-code-tag">СИМУЛЯТОР СЕТИ</div>
         <button class="reset-btn" @click="resetSim">Сбросить параметры</button>
       </div>
-      <h2>Моделирование эффекта управленческих решений</h2>
+      <h2>Какая часть разрыва закрывается</h2>
       <p class="muted sub">
-        Корректировка параметров программирования мероприятий и расчёт прогноза сетевого эффекта:
+        Ползунок — доля найденного разрыва с соседями по архетипу, которую удаётся закрыть.
+        100 % означает выход на медиану своей модели; дальше медианы ничего не достраивается,
+        потому что наблюдений за этой границей нет.
       </p>
 
       <div class="sliders-grid">
         <div class="slider-box">
           <div class="slider-top">
             <span class="slider-label">Наполняемость мероприятий</span>
-            <strong class="slider-val">+{{ simAttendanceBoost }}%</strong>
+            <strong class="slider-val">{{ simAttendanceShare }}% разрыва</strong>
           </div>
-          <input type="range" min="0" max="50" step="5" v-model.number="simAttendanceBoost" />
+          <input type="range" min="0" max="100" step="5" v-model.number="simAttendanceShare" />
           <small class="muted">Оптимизация анонсов и запуск повторных потоков</small>
         </div>
 
         <div class="slider-box">
           <div class="slider-top">
             <span class="slider-label">Конверсия в арт-продукты</span>
-            <strong class="slider-val">+{{ simConversionBoost }}%</strong>
+            <strong class="slider-val">{{ simConversionShare }}% разрыва</strong>
           </div>
-          <input type="range" min="0" max="40" step="5" v-model.number="simConversionBoost" />
+          <input type="range" min="0" max="100" step="5" v-model.number="simConversionShare" />
           <small class="muted">Введение обязательного проектного трека на курсах</small>
         </div>
 
         <div class="slider-box">
           <div class="slider-top">
             <span class="slider-label">Платные программы и ДПО</span>
-            <strong class="slider-val">+{{ simMonetizeBoost }}%</strong>
+            <strong class="slider-val">{{ simMonetizeShare }}% разрыва</strong>
           </div>
-          <input type="range" min="0" max="60" step="5" v-model.number="simMonetizeBoost" />
+          <input type="range" min="0" max="100" step="5" v-model.number="simMonetizeShare" />
           <small class="muted">Платные вечерние слоты и коммерческое прототипирование</small>
         </div>
       </div>
@@ -220,9 +226,18 @@ const filtered = computed(() => {
               {{ KIND[row.rec_type]?.label }}
             </span>
           </div>
-          <span class="badge" :class="weight(row.priority).class">
-            {{ row.priority }} / 100
-          </span>
+          <div class="rec-badges">
+            <span
+              v-if="row.data_flag"
+              class="badge badge-warning"
+              title="Контроль качества нашёл расхождение в отчёте этого центра: цифру нужно подтвердить у организации"
+            >
+              данные под вопросом
+            </span>
+            <span class="badge" :class="weight(row.priority).class">
+              {{ row.priority }} / 100
+            </span>
+          </div>
         </div>
 
         <div class="rec-core">
@@ -257,6 +272,8 @@ const filtered = computed(() => {
 </template>
 
 <style scoped>
+.rec-badges { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+
 .stack { display: flex; flex-direction: column; gap: 24px; }
 .sub { font-size: 13px; margin-top: 2px; }
 

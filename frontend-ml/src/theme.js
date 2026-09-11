@@ -133,6 +133,19 @@ export function getClusterMeta(idOrName) {
   return byName || { name: String(idOrName), color: '#3b82f6', index: '00', code: 'CLS' }
 }
 
+/**
+ * Согласование существительного с числом: 1 центр, 2 центра, 5 центров.
+ * `forms` — [один, два, пять].
+ */
+export function plural(count, forms) {
+  const n = Math.abs(Math.round(count)) % 100
+  const n1 = n % 10
+  if (n > 10 && n < 20) return forms[2]
+  if (n1 > 1 && n1 < 5) return forms[1]
+  if (n1 === 1) return forms[0]
+  return forms[2]
+}
+
 export function percent(value, decimals = 0) {
   if (value === null || value === undefined || Number.isNaN(value)) return '—'
   return `${(value * 100).toFixed(decimals).replace('.', ',')}%`

@@ -20,7 +20,18 @@ const props = defineProps({
 
 const emit = defineEmits(["select-tab", "select-org"])
 
-const impact = computed(() => props.overview.recommendations?.impact || {})
+// В витрину идёт подтверждённый резерв — без центров, у которых контроль
+// качества нашёл внутренние расхождения в отчёте. Полный резерв остаётся рядом,
+// чтобы разница была видна, а не спрятана.
+const impact = computed(() => props.overview.recommendations?.impact_verified || {})
+const impactFull = computed(() => props.overview.recommendations?.impact || {})
+const flaggedCount = computed(() => props.overview.recommendations?.flagged_orgs?.length || 0)
+
+/** Доля резерва к текущему объёму сети — считается, а не подписывается руками. */
+function share(reserve, current) {
+  if (!reserve || !current) return ""
+  return `+${((reserve / current) * 100).toFixed(1)}% к текущему объёму сети`
+}
 
 /** Три самые показательные находки из данных */
 const highlights = computed(() => {
@@ -109,21 +120,29 @@ const highlights = computed(() => {
       <!-- 3 Главных показателя резерва -->
       <div class="impact-grid">
         <div v-if="impact.participants" class="impact-card">
-          <div class="impact-val">+{{ compact(impact.participants.total) }}</div>
+          <div class="impact-val">+{{ compact(Math.round(impact.participants.total)) }}</div>
           <div class="impact-lbl">участников обучения</div>
-          <div class="impact-sub">+40.3% к текущему объему сети</div>
+          <div class="impact-sub">{{ share(impact.participants.total, overview.audience_total) }}</div>
         </div>
         <div v-if="impact.products" class="impact-card">
-          <div class="impact-val">+{{ compact(impact.products.total) }}</div>
+          <div class="impact-val">+{{ compact(Math.round(impact.products.total)) }}</div>
           <div class="impact-lbl">готовых творческих работ</div>
-          <div class="impact-sub">+68.0% к результативности</div>
+          <div class="impact-sub">{{ share(impact.products.total, overview.products_total) }}</div>
         </div>
         <div v-if="impact.revenue" class="impact-card">
           <div class="impact-val">+{{ money(impact.revenue.total) }}</div>
           <div class="impact-lbl">объёма платных услуг</div>
-          <div class="impact-sub">+38.6% к внебюджетному доходу</div>
+          <div class="impact-sub">{{ share(impact.revenue.total, overview.revenue_total) }}</div>
         </div>
       </div>
+
+      <p v-if="flaggedCount" class="reserve-note muted">
+        Это подтверждённый резерв. Ещё
+        <b>+{{ compact(Math.round((impactFull.participants?.total || 0) - (impact.participants?.total || 0))) }}</b>
+        участников приходится на {{ flaggedCount }} центра, у которых цифры внутри отчёта противоречат
+        друг другу: такой резерв может оказаться артефактом заполнения, поэтому в сводную цифру он не
+        включён — разбор по ним в разделе «Качество данных».
+      </p>
 
       <div class="takeaway-box">
         <div class="takeaway-icon-dot" />
@@ -275,6 +294,12 @@ const highlights = computed(() => {
 </template>
 
 <style scoped>
+.reserve-note {
+  font-size: 12.5px;
+  line-height: 1.55;
+  margin: -4px 0 0;
+}
+
 .stack { display: flex; flex-direction: column; gap: 24px; }
 
 .hero {

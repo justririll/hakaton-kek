@@ -3,6 +3,15 @@
 set -euo pipefail
 cd "$(dirname "$0")"
 
+# Ключ Gemini лежит в .env (см. .env.example) и в репозиторий не попадает.
+# Без него платформа работает, но вместо AI-резюме отдаётся детерминированный текст.
+if [ -f .env ]; then
+  set -a
+  # shellcheck disable=SC1091
+  . ./.env
+  set +a
+fi
+
 (cd backend && uv sync --quiet && uv run uvicorn app.main:app --port 8010) &
 backend=$!
 (cd frontend-ml && npm install --silent && npm run dev) &

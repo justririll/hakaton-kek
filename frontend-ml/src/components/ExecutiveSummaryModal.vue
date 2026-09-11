@@ -1,5 +1,5 @@
 <script setup>
-import { onMounted, onBeforeUnmount } from "vue"
+import { computed, onMounted, onBeforeUnmount } from "vue"
 import Icon from "./Icon.vue"
 import AiBriefCard from "./AiBriefCard.vue"
 import { compact, money, percent } from "../theme"
@@ -11,6 +11,15 @@ const props = defineProps({
 })
 
 const emit = defineEmits(["close"])
+
+// Записка для руководства опирается на подтверждённый резерв: цифру из неё
+// произносят вслух, и она не должна держаться на строке с расхождением.
+const impact = computed(() => props.overview.recommendations?.impact_verified || {})
+
+function share(reserve, current) {
+  if (!reserve || !current) return ""
+  return `+${((reserve / current) * 100).toFixed(0)}%`
+}
 
 function printReport() {
   window.print()
@@ -117,18 +126,24 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown))
           </p>
           <div class="impact-grid">
             <div class="impact-box">
-              <span class="impact-plus">+{{ compact(overview.recommendations?.impact?.participants?.total) }}</span>
-              <span class="impact-title">дополнительных участников (+40%)</span>
+              <span class="impact-plus">+{{ compact(impact.participants?.total) }}</span>
+              <span class="impact-title">
+                дополнительных участников ({{ share(impact.participants?.total, overview.audience_total) }})
+              </span>
               <p class="muted">за счёт наполняемости существующих мастер-классов</p>
             </div>
             <div class="impact-box">
-              <span class="impact-plus">+{{ compact(overview.recommendations?.impact?.products?.total) }}</span>
-              <span class="impact-title">готовых арт-продуктов (+68%)</span>
+              <span class="impact-plus">+{{ compact(impact.products?.total) }}</span>
+              <span class="impact-title">
+                готовых арт-продуктов ({{ share(impact.products?.total, overview.products_total) }})
+              </span>
               <p class="muted">за счёт добавления проектных воркшопов к лекциям</p>
             </div>
             <div class="impact-box">
-              <span class="impact-plus">+{{ money(overview.recommendations?.impact?.revenue?.total) }}</span>
-              <span class="impact-title">дополнительной выручки (+38%)</span>
+              <span class="impact-plus">+{{ money(impact.revenue?.total) }}</span>
+              <span class="impact-title">
+                дополнительной выручки ({{ share(impact.revenue?.total, overview.revenue_total) }})
+              </span>
               <p class="muted">за счёт платных специализированных модулей</p>
             </div>
           </div>

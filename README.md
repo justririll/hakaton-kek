@@ -7,6 +7,11 @@
 оценкой ожидаемого эффекта.
 
 > [!IMPORTANT]
+> **Аудит витрины и список правок:** что проверено в работающем дашборде, какие
+> числа расходились с датасетом и что с этим сделано — в файле
+> [**`README_AUDIT.MD`**](README_AUDIT.MD).
+
+> [!IMPORTANT]
 > **Презентация проекта для жюри хакатона (7 минут):**  
 > Поминутный таймлайн, скрипт речи спикера, демонстрация симулятора и шпаргалка ответов на вопросы жюри — в файле [**`PRESENTATION_7MIN.md`**](file:///home/kirill/hackaton4ik-ag/PRESENTATION_7MIN.md).
 
@@ -116,7 +121,7 @@ frontend-ml/src/
 └── components/
     ├── SectionStory.vue            главное: сводка эффекта и ключевые инсайты
     ├── SectionDynamics.vue         графики динамики (2025-2026, Q1-Q4), форматы, план-факт
-    ├── SectionFeedback.vue         обратная связь, воронка вовлеченности, радар CSAT и отзывы
+    ├── SectionFeedback.vue         наблюдаемые заменители обратной связи и конверсия по центрам
     ├── SectionClusters.vue         5 архетипов аудитории, радарные профили, 2D-карта сети
     ├── SectionRecommendations.vue  симулятор мероприятий («Что если») и 50 мер
     ├── SectionOrganizations.vue    витрина 20 учреждений с быстрым поиском и фильтрами
@@ -125,10 +130,11 @@ frontend-ml/src/
     └── ExecutiveSummaryModal.vue   экспресс-отчет для руководства (готов к печати/PDF)
 ```
 
-В репозитории два интерфейса. `frontend/` — основной Vue 3 + TypeScript фронт
-команды, работающий с контрактом `/api/v1/analytics/dashboard`. `frontend-ml/` —
-демонстрационный интерфейс ML-части: он ходит в описанный ниже API напрямую и
-служит витриной для моделей. Ветка не затрагивает файлы основного фронта.
+Интерфейс в репозитории один — `frontend-ml/`. Он ходит в описанный ниже API
+напрямую, без промежуточного контракта. Ранний прототип (`app/` с заглушкой
+`/api/v1/analytics/dashboard` и работавший с ним `frontend/`) удалён: он отдавал
+заранее записанные числа и при запуске из корня репозитория поднимался вместо
+настоящего сервиса.
 
 ---
 
@@ -491,13 +497,24 @@ KMeans и Ward дали идентичные разбиения — структ
   "recommendations": {             // = network_summary()
     "total": 50,
     "by_type": { "fix_format": 11, "monetize": 9, "...": 0 },
-    "impact": {
+    "impact": {                    // весь найденный резерв
       "participants": { "total": 1689.9, "unit": "чел.", "count": 16 },
       "revenue":      { "total": 9669800.0, "unit": "₽", "count": 9 }
     },
+    "impact_verified": {           // без организаций с расхождениями в отчёте
+      "participants": { "total": 753.3, "unit": "чел.", "count": 12 },
+      "revenue":      { "total": 9669800.0, "unit": "₽", "count": 9 }
+    },
+    "flagged_orgs": ["гмп", "мгик-ф1-2", "нижний-новогород", "новосиб"],
     "mean_priority": 51.0,
     "mean_confidence": 0.452
   },
+  "dynamics": [                    // база 2025 года там, где она заполнена
+    { "key": "formats", "baseline_2025": 371.0, "baseline_orgs": 18,
+      "fact_comparable": 304.0, "fact_ytd": 307.0, "growth_year": 0.0925 },
+    { "key": "audience", "baseline_2025": null, "baseline_orgs": 0,
+      "fact_ytd": 4193.0, "growth_year": null }
+  ],
   "anomalies": 17,
   "data_quality": { "info": 23, "warning": 3 },
   "build_seconds": 6.693

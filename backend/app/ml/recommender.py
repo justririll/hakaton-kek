@@ -498,6 +498,7 @@ RECOMMENDATION_COLUMNS: tuple[str, ...] = (
     "impact_unit",
     "rationale",
     "evidence",
+    "data_flag",
 )
 
 
@@ -508,8 +509,16 @@ def build_recommendations(
     plan: pd.DataFrame,
     names: pd.Series,
     top_per_org: int | None = None,
+    flagged: set[str] | None = None,
 ) -> pd.DataFrame:
-    """Строит рекомендации для всех организаций сети."""
+    """Строит рекомендации для всех организаций сети.
+
+    `flagged` — организации, чьи первичные данные контроль качества пометил как
+    сомнительные. Их рекомендации не выбрасываются: расхождение в отчёте само по
+    себе повод для разговора с центром. Но доверие к такой рекомендации вдвое
+    ниже, и в сводный резерв сети она не попадает — иначе управленческая цифра
+    опиралась бы на строку, про которую платформа сама говорит «вероятна ошибка».
+    """
     clusters = {int(c): labels.index[labels == c].tolist() for c in labels.unique()}
     rows: list[dict] = []
 
@@ -532,17 +541,20 @@ def build_recommendations(
     # сообщает: приоритет 90 означает «верхние 10 % резервов сети».
     table["priority"] = (table["raw_score"].rank(pct=True) * 100).round().astype(int).clip(1, 100)
 
+    table["data_flag"] = table["org_id"].isin(flagged or set())
+    if table["data_flag"].any():
+        table.loc[table["data_flag"], "confidence"] = (
+            table.loc[table["data_flag"], "confidence"] * 0.5
+        ).round(3)
+
     table = table.sort_values(["org_id", "priority"], ascending=[True, False])
     if top_per_org is not None:
         table = table.groupby("org_id", group_keys=False).head(top_per_org)
     return table
 
 
-def network_summary(recommendations: pd.DataFrame) -> dict:
-    """Сводка по сети: где сосредоточен управленческий резерв."""
-    if recommendations.empty:
-        return {"total": 0, "by_type": {}, "impact": {}}
-
+def _impact_table(recommendations: pd.DataFrame) -> dict[str, dict]:
+    """Суммарный эффект по каждой натуральной единице."""
     impact: dict[str, dict] = {}
     for metric, group in recommendations.groupby("impact_metric"):
         impact[str(metric)] = {
@@ -550,11 +562,34 @@ def network_summary(recommendations: pd.DataFrame) -> dict:
             "unit": str(group["impact_unit"].iloc[0]),
             "count": int(len(group)),
         }
+    return impact
+
+
+def network_summary(recommendations: pd.DataFrame) -> dict:
+    """Сводка по сети: где сосредоточен управленческий резерв.
+
+    Резерв отдаётся в двух видах. `impact` — всё, что нашли модели. `impact`
+    подтверждённый (`impact_verified`) — то же самое без организаций, чьи данные
+    помечены контролем качества. В витрину идёт подтверждённый: цифру, которую
+    руководитель произносит вслух, нельзя строить на строке с расхождением.
+    """
+    if recommendations.empty:
+        return {"total": 0, "by_type": {}, "impact": {}, "impact_verified": {}, "flagged": 0}
+
+    flagged_mask = (
+        recommendations["data_flag"].fillna(False)
+        if "data_flag" in recommendations.columns
+        else pd.Series(False, index=recommendations.index)
+    )
+    verified = recommendations[~flagged_mask]
 
     return {
         "total": int(len(recommendations)),
         "by_type": {str(k): int(v) for k, v in recommendations["rec_type"].value_counts().items()},
-        "impact": impact,
+        "impact": _impact_table(recommendations),
+        "impact_verified": _impact_table(verified) if not verified.empty else {},
+        "flagged": int(flagged_mask.sum()),
+        "flagged_orgs": sorted(set(recommendations.loc[flagged_mask, "org_id"].astype(str))),
         "mean_priority": round(float(recommendations["priority"].mean()), 1),
         "mean_confidence": round(float(recommendations["confidence"].mean()), 3),
     }

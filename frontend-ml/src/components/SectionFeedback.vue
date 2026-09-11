@@ -1,230 +1,180 @@
 <script setup>
 /**
- * Раздел «Обратная связь & Вовлеченность»:
- * Анализ удовлетворенности аудитории, воронка вовлечения,
- * радар факторов качества и структурированная лента отзывов.
+ * Раздел «Обратная связь и вовлечённость».
+ *
+ * Прямой обратной связи в ведомственной отчётности нет: ни оценок, ни отзывов,
+ * ни NPS. Раздел построен на наблюдаемых заменителях, которые отвечают на тот
+ * же управленческий вопрос «доволен ли участник и вернулся ли он»:
+ *
+ *   довёл ли участник работу до результата  → конверсия в арт-продукт;
+ *   вернулся ли он                          → доля резидентов;
+ *   заметен ли результат снаружи            → публикации и федеральные площадки.
+ *
+ * Ни одно число здесь не выдумано: всё приходит из API. Контур для настоящей
+ * обратной связи предусмотрен ниже и прямо помечен как неподключённый.
  */
 import { computed, ref } from "vue"
 import EChart from "./EChart.vue"
 import StatTile from "./StatTile.vue"
-import { baseOption, axisStyle, palette, compact } from "../theme"
+import { axisStyle, baseOption, compact, palette, percent } from "../theme"
 
 const props = defineProps({
   overview: { type: Object, required: true },
   organizations: { type: Array, required: true },
 })
 
-const activeSentiment = ref("all")
-const activeCategory = ref("all")
+// --- наблюдаемые заменители обратной связи --------------------------------------
 
-// Интерактивная форма нового отзыва
-const newOrg = ref("")
-const newRating = ref(5)
-const newCategory = ref("equipment")
-const newComment = ref("")
-const submittedNotice = ref(false)
-
-const REVIEWS = ref([
-  {
-    id: 1,
-    org: "Академия Андрияки",
-    author: "Елена С., курс художественной керамики",
-    rating: 5,
-    category: "equipment",
-    categoryLabel: "Оборудование и мастерские",
-    sentiment: "positive",
-    text: "Качественная мастерская 3D-моделирования и керамические печи. За 3 недели довела эскиз до готовой скульптуры. Кураторы дежурят в выходные дни.",
-    date: "14 сен 2026",
-  },
-  {
-    id: 2,
-    org: "МГИК",
-    author: "Артём В., интенсивы саунд-дизайна",
-    rating: 4,
-    category: "schedule",
-    categoryLabel: "Организация и расписание",
-    sentiment: "warning",
-    text: "Оборудование в студии профессиональное, но мест в группе было 25 на 15 рабочих станций. Требуется расширение вечерних слотов.",
-    date: "09 сен 2026",
-  },
-  {
-    id: 3,
-    org: "СПбГИКиТ",
-    author: "Дарья К., лаборатория видеомонтажа",
-    rating: 5,
-    category: "mentors",
-    categoryLabel: "Кураторы и эксперты",
-    sentiment: "positive",
-    text: "Практики из индустрии кино. Наш короткий метр отобрали на фестиваль студенческого кино в Москве. Резидентура дала колоссальный толчок.",
-    date: "02 сен 2026",
-  },
-  {
-    id: 4,
-    org: "Нижегородская консерватория",
-    author: "Михаил П., цифровая звукозапись",
-    rating: 5,
-    category: "mentors",
-    categoryLabel: "Кураторы и эксперты",
-    sentiment: "positive",
-    text: "Отличный модуль по сведению оркестровой музыки. Записали альбом студенческого ансамбля. Высокий профессионализм звукорежиссёров центра.",
-    date: "28 авг 2026",
-  },
-  {
-    id: 5,
-    org: "КГИК (Краснодар)",
-    author: "Ольга М., программа ДПО",
-    rating: 3,
-    category: "schedule",
-    categoryLabel: "Организация и расписание",
-    sentiment: "warning",
-    text: "Мало времени на самостоятельную практику в коворкинге после занятий. Центр закрывается в 18:00, для работающих резидентов это неудобно.",
-    date: "21 авг 2026",
-  },
-  {
-    id: 6,
-    org: "Карандаш (ГУЦЭИ)",
-    author: "Игорь Т., сценический реквизит",
-    rating: 5,
-    category: "equipment",
-    categoryLabel: "Оборудование и мастерские",
-    sentiment: "positive",
-    text: "Спроектировали и изготовили уникальный реквизит на станках ЧПУ. Прототипирование экономит недели ручной работы.",
-    date: "17 авг 2026",
-  },
-])
-
-function submitReview() {
-  if (!newComment.value.trim()) return
-  const catNames = {
-    equipment: "Оборудование и мастерские",
-    mentors: "Кураторы и эксперты",
-    schedule: "Организация и расписание",
-    practice: "Практика и портфолио",
-  }
-  REVIEWS.value.unshift({
-    id: Date.now(),
-    org: newOrg.value || "Слушатель курса",
-    author: "Посетитель центра",
-    rating: Number(newRating.value),
-    category: newCategory.value,
-    categoryLabel: catNames[newCategory.value] || "Общее",
-    sentiment: newRating.value >= 4 ? "positive" : "warning",
-    text: newComment.value.trim(),
-    date: "Сегодня",
-  })
-  newComment.value = ""
-  submittedNotice.value = true
-  setTimeout(() => (submittedNotice.value = false), 4000)
-}
-
-const filteredReviews = computed(() => {
-  return REVIEWS.value.filter((r) => {
-    const matchSent = activeSentiment.value === "all" || r.sentiment === activeSentiment.value
-    const matchCat = activeCategory.value === "all" || r.category === activeCategory.value
-    return matchSent && matchCat
-  })
+/** Доля участников, доведших работу до готового арт-продукта. */
+const productRate = computed(() => {
+  const aud = props.overview?.audience_total || 0
+  return aud ? (props.overview?.products_total || 0) / aud : 0
 })
 
-/** Воронка вовлеченности участников */
+/** Доля аудитории, дошедшей до статуса резидента (строка 3 Формы 2). */
+const residentRate = computed(() => {
+  const aud = props.overview?.audience_total || 0
+  return aud ? (props.overview?.residents_total || 0) / aud : 0
+})
+
+/** Центры с конверсией ниже сетевой медианы — куда смотреть в первую очередь. */
+const belowMedian = computed(() => {
+  const median = props.overview?.median_product_rate ?? 0
+  return props.organizations.filter((o) => (o.product_rate ?? 0) < median).length
+})
+
+/**
+ * Ступени вовлечённости. Единицы на ступенях разные (люди → люди → работы →
+ * публикации → события), поэтому это не вложенная воронка, а сужение от
+ * участия к внешнему признанию. Значение каждой ступени равно наблюдаемому
+ * показателю — геометрия не «рисуется» отдельно от подписи.
+ */
 const funnelOption = computed(() => {
   const p = palette()
-  const aud = props.overview?.audience_total || 4193
-  const res = props.overview?.residents_total || 3981
-  const prod = props.overview?.products_total || 2074
-  const pubs = props.overview?.publications_total || 768
-  const fed = props.overview?.federal_events_total || 78
-
-  const resPct = Math.round((res / aud) * 100)
-  const prodPct = Math.round((prod / aud) * 100)
+  const o = props.overview || {}
+  const stages = [
+    { value: o.audience_total || 0, name: `Обучено участников: ${compact(o.audience_total)} чел.`, color: "#2563eb" },
+    { value: o.residents_total || 0, name: `Резиденты: ${compact(o.residents_total)} чел.`, color: "#3b82f6" },
+    { value: o.products_total || 0, name: `Готовые арт-продукты: ${compact(o.products_total)} шт.`, color: "#10b981" },
+    { value: o.publications_total || 0, name: `Публикации о результатах: ${compact(o.publications_total)} шт.`, color: "#f59e0b" },
+    { value: o.federal_events_total || 0, name: `Федеральные площадки: ${compact(o.federal_events_total)} шт.`, color: "#8b5cf6" },
+  ]
 
   return {
     ...baseOption(),
     tooltip: { trigger: "item", formatter: "{b}" },
     series: [
       {
-        name: "Воронка вовлеченности",
+        name: "Ступени вовлечённости",
         type: "funnel",
         left: "6%",
         top: 16,
         bottom: 16,
         width: "88%",
         min: 0,
-        max: aud,
+        max: stages[0].value,
         minSize: "22%",
         maxSize: "100%",
         sort: "descending",
         gap: 4,
-        label: {
-          show: true,
-          position: "inside",
-          formatter: "{b}",
-          color: "#ffffff",
-          fontWeight: 600,
-          fontSize: 12,
-        },
-        itemStyle: {
-          borderColor: p.surface,
-          borderWidth: 2,
-          borderRadius: 4,
-        },
-        data: [
-          { value: aud, name: `1. Первичный курс: ${compact(aud)} чел.`, itemStyle: { color: "#2563eb" } },
-          { value: Math.round(aud * 0.82), name: `2. Резидентство: ${compact(res)} чел. (${resPct}%)`, itemStyle: { color: "#3b82f6" } },
-          { value: Math.round(aud * 0.62), name: `3. Арт-продукты: ${compact(prod)} ед. (${prodPct}%)`, itemStyle: { color: "#10b981" } },
-          { value: Math.round(aud * 0.44), name: `4. Освещение в СМИ: ${compact(pubs)} публ.`, itemStyle: { color: "#f59e0b" } },
-          { value: Math.round(aud * 0.28), name: `5. Федеральный PR: ${compact(fed)} событий`, itemStyle: { color: "#8b5cf6" } },
-        ],
+        label: { show: true, position: "inside", formatter: "{b}", color: "#ffffff", fontWeight: 600, fontSize: 12 },
+        itemStyle: { borderColor: p.surface, borderWidth: 2, borderRadius: 4 },
+        data: stages.map((s) => ({ value: s.value, name: s.name, itemStyle: { color: s.color } })),
       },
     ],
   }
 })
 
-/** Радар факторов удовлетворенности */
-const satisfactionRadarOption = computed(() => {
+/**
+ * Конверсия участия в результат по центрам — то, что в этой отчётности ближе
+ * всего к оценке удовлетворённости: участник, доведший работу до конца,
+ * проголосовал за центр делом.
+ */
+const conversionOption = computed(() => {
   const p = palette()
+  const rows = [...props.organizations]
+    .filter((o) => (o.audience_total || 0) > 0)
+    .sort((a, b) => (b.product_rate || 0) - (a.product_rate || 0))
+  const median = props.overview?.median_product_rate ?? 0
+
   return {
     ...baseOption(),
-    tooltip: { trigger: "item" },
-    radar: {
-      indicator: [
-        { name: "Оборудование мастерских", max: 5 },
-        { name: "Экспертиза кураторов", max: 5 },
-        { name: "Практическая польза", max: 5 },
-        { name: "Коворкинг и нетворкинг", max: 5 },
-        { name: "График и доступность", max: 5 },
-      ],
-      shape: "circle",
-      splitNumber: 5,
-      axisName: { color: p.textSecondary, fontSize: 11 },
-      splitLine: { lineStyle: { color: p.grid } },
-      splitArea: { show: false },
-      axisLine: { lineStyle: { color: p.border } },
+    tooltip: {
+      ...baseOption().tooltip,
+      trigger: "item",
+      formatter: (item) => {
+        const org = rows[item.dataIndex]
+        return `<b>${org.short_name}</b><br/>${item.value.toFixed(2)} работ на участника<br/>`
+          + `${compact(org.products_total)} шт. на ${compact(org.audience_total)} чел.`
+      },
+    },
+    grid: { left: 8, right: 24, top: 28, bottom: 8, containLabel: true },
+    xAxis: { type: "value", ...axisStyle(), axisLabel: { color: p.muted, fontSize: 11 } },
+    yAxis: {
+      type: "category",
+      inverse: true,
+      data: rows.map((o) => o.short_name),
+      ...axisStyle(),
+      axisLabel: { color: p.textSecondary, fontSize: 11 },
     },
     series: [
       {
-        name: "Оценка качества",
-        type: "radar",
-        data: [
-          {
-            value: [4.8, 4.9, 4.6, 4.5, 3.9],
-            name: "Средняя оценка сети",
-            symbolSize: 6,
-            itemStyle: { color: p.accent },
-            areaStyle: { color: p.accent + "25" },
-            lineStyle: { width: 2 },
+        type: "bar",
+        data: rows.map((o) => ({
+          value: Number((o.product_rate || 0).toFixed(3)),
+          itemStyle: { color: (o.product_rate || 0) >= median ? "#10b981" : "#f59e0b", borderRadius: [0, 3, 3, 0] },
+        })),
+        barMaxWidth: 14,
+        markLine: {
+          silent: true,
+          symbol: "none",
+          // «end» у вертикальной линии ложится на подписи оси — уводим внутрь сверху.
+          label: {
+            formatter: `медиана ${median}`,
+            color: p.muted,
+            fontSize: 11,
+            position: "insideEndTop",
           },
-          {
-            value: [4.2, 4.3, 4.0, 3.8, 4.2],
-            name: "Ориентир вузов РФ",
-            symbolSize: 4,
-            itemStyle: { color: p.muted },
-            lineStyle: { width: 1.5, type: "dashed" },
-          },
-        ],
+          lineStyle: { color: p.muted, width: 1, type: "dashed" },
+          data: [{ xAxis: median }],
+        },
       },
     ],
   }
 })
+
+// --- контур сбора настоящей обратной связи ---------------------------------------
+
+// Источника отзывов нет, поэтому лента пуста. Всё, что появится здесь, —
+// записи, введённые прямо в интерфейсе; они помечаются как демонстрационные и
+// нигде не участвуют в расчётах.
+const demoEntries = ref([])
+
+const newOrg = ref("")
+const newRating = ref(5)
+const newCategory = ref("equipment")
+const newComment = ref("")
+const submittedNotice = ref(false)
+
+const CATEGORY_LABELS = {
+  equipment: "Оборудование и мастерские",
+  mentors: "Кураторы и эксперты",
+  schedule: "Организация и расписание",
+  practice: "Практика и портфолио",
+}
+
+function submitReview() {
+  if (!newComment.value.trim()) return
+  demoEntries.value.unshift({
+    id: Date.now(),
+    org: newOrg.value || "центр не указан",
+    rating: Number(newRating.value),
+    categoryLabel: CATEGORY_LABELS[newCategory.value] || "Общее",
+    text: newComment.value.trim(),
+  })
+  newComment.value = ""
+  submittedNotice.value = true
+}
 </script>
 
 <template>
@@ -232,103 +182,113 @@ const satisfactionRadarOption = computed(() => {
     <!-- Резюме -->
     <div class="takeaway-box">
       <div class="takeaway-text">
-        <strong>Обратная связь и удержание аудитории:</strong>
-        Совокупный расчётный индекс удовлетворенности (CSAT Proxy) составляет <b>84.6%</b>.
-        <b>94.9% участников</b> продолжают работать в центрах в качестве постоянных резидентов.
-        Аудитория максимально лояльна качеству наставничества (4.9/5) и станочной базе (4.8/5),
-        но 38% критических отзывов связаны с нехваткой вечернего времени для самостоятельной практики в мастерских.
+        <strong>Прямой обратной связи в отчётности нет.</strong>
+        Формы 1 и 2 не содержат ни оценок, ни отзывов, ни NPS — и выдумывать их означало бы
+        строить управленческие решения на несуществующих числах. Вместо этого раздел опирается на
+        наблюдаемые заменители: участник, <b>доведший работу до результата</b>, и участник,
+        <b>вернувшийся резидентом</b>, проголосовали за центр делом.
+        По сети это {{ percent(productRate, 1) }} конверсии в готовый арт-продукт и
+        {{ compact(overview.residents_total) }} резидентов;
+        <b>{{ belowMedian }} из {{ overview.organizations }} центров</b> идут ниже сетевой медианы
+        {{ overview.median_product_rate }} работы на участника — это и есть адресный список для работы.
       </div>
     </div>
 
-    <!-- Метрики лояльности -->
+    <!-- Наблюдаемые показатели вовлечённости -->
     <div class="tiles-grid">
       <StatTile
-        label="Индекс удовлетворенности (CSI)"
-        value="84.6%"
-        note="расчетный интегральный индекс качества"
+        label="Конверсия в арт-продукт"
+        :value="percent(productRate, 1)"
+        note="готовых работ на участника по сети"
         hero
       />
       <StatTile
-        label="Коэффициент удержания (Retention)"
-        value="94.9%"
-        note="3 981 участник стали резидентами"
+        label="Медиана по центрам"
+        :value="`${overview.median_product_rate}`"
+        note="работы на участника у типичного центра"
       />
       <StatTile
-        label="Конверсия в арт-продукт"
-        value="49.5%"
-        note="каждый второй создал готовую работу"
+        label="Резиденты"
+        :value="compact(overview.residents_total)"
+        note="строка 3 Формы 2 — вернувшиеся к работе"
       />
       <StatTile
-        label="Медийный охват результатов"
+        label="Внешнее признание"
         :value="compact(overview.publications_total)"
-        note="публикаций в СМИ о проектах участников"
+        :note="`публикаций и ${overview.federal_events_total} выходов на федеральные площадки`"
       />
     </div>
 
-    <!-- Две колонки: Воронка вовлеченности и Радар факторов качества -->
+    <!-- Две колонки: ступени вовлечённости и конверсия по центрам -->
     <div class="two-col-grid">
       <div class="card">
-        <h2>Воронка вовлечения: от визита к результату</h2>
+        <h2>Ступени вовлечённости: от участия к признанию</h2>
         <p class="muted sub">
-          Этапы конверсии: первичный курс → резидентство → готовый авторский продукт → федеральный PR.
+          Единицы на ступенях разные (люди → люди → работы → публикации → события), поэтому это не
+          вложенная воронка: ступени показывают, насколько сужается путь от посещения к внешнему
+          результату. Высота каждой ступени равна наблюдаемому значению показателя.
         </p>
         <EChart :option="funnelOption" height="320px" />
       </div>
 
       <div class="card">
-        <h2>Оценка факторов удовлетворенности аудитории</h2>
+        <h2>Конверсия участия в результат по центрам</h2>
         <p class="muted sub">
-          Оценка ключевых аспектов взаимодействия с центрами (шкала 1.0 – 5.0).
+          Сколько готовых работ приходится на одного участника. Жёлтым — центры ниже сетевой медианы:
+          аудитория до них дошла, но результата не получила.
         </p>
-        <EChart :option="satisfactionRadarOption" height="320px" />
+        <EChart :option="conversionOption" height="480px" />
       </div>
     </div>
 
-    <!-- Лента отзывов участников и форма обратной связи -->
+    <!-- Контур сбора настоящей обратной связи -->
     <div class="reviews-section-grid">
       <div class="card feed-card">
         <div class="feed-header">
           <div>
-            <h2>Отзывы и обратная связь участников</h2>
-            <p class="muted sub">Аналитика фидбека участников курсов и творческих лабораторий.</p>
-          </div>
-          <div class="filter-group">
-            <button :class="{ active: activeSentiment === 'all' }" @click="activeSentiment = 'all'">
-              Все ({{ REVIEWS.length }})
-            </button>
-            <button :class="{ active: activeSentiment === 'positive' }" @click="activeSentiment = 'positive'">
-              Положительные
-            </button>
-            <button :class="{ active: activeSentiment === 'warning' }" @click="activeSentiment = 'warning'">
-              Точки роста
-            </button>
+            <h2>Лента обратной связи</h2>
+            <p class="muted sub">
+              Источник не подключён: полей отзывов в Формах 1 и 2 не существует.
+            </p>
           </div>
         </div>
 
-        <div class="reviews-list">
-          <div v-for="rev in filteredReviews" :key="rev.id" class="review-item">
+        <div v-if="demoEntries.length" class="reviews-list">
+          <div v-for="entry in demoEntries" :key="entry.id" class="review-item">
             <div class="rev-top">
               <div>
-                <strong>{{ rev.author }}</strong>
-                <span class="muted org-chip">• {{ rev.org }}</span>
+                <strong>{{ entry.org }}</strong>
+                <span class="muted org-chip">• демонстрационная запись</span>
               </div>
-              <div class="rating-badge mono-nums">
-                {{ rev.rating }}.0 / 5.0
-              </div>
+              <div class="rating-badge mono-nums">{{ entry.rating }}.0 / 5.0</div>
             </div>
-            <p class="rev-text">«{{ rev.text }}»</p>
+            <p class="rev-text">«{{ entry.text }}»</p>
             <div class="rev-meta">
-              <span class="badge badge-neutral">{{ rev.categoryLabel }}</span>
-              <span class="muted date">{{ rev.date }}</span>
+              <span class="badge badge-neutral">{{ entry.categoryLabel }}</span>
+              <span class="muted date">введено в интерфейсе, в расчётах не участвует</span>
             </div>
           </div>
+        </div>
+
+        <div v-else class="empty-feed">
+          <p>
+            Здесь будут отзывы, когда появится источник. Пока лента пуста — и это честное состояние
+            данных, а не ошибка загрузки.
+          </p>
+          <p class="muted">
+            Чтобы контур заработал, нужны две вещи: запись показателя в
+            <code>app/ingest/schema.py</code> и вызов <code>POST /api/reload</code> — после этого
+            оценки пойдут в те же модели, что и остальные показатели, а раздел заполнится сам.
+          </p>
         </div>
       </div>
 
       <!-- Форма сбора фидбека -->
       <div class="card form-card">
-        <h2>Добавить отзыв в мониторинг</h2>
-        <p class="muted sub">Интеграция контура обратной связи мероприятий.</p>
+        <h2>Проверить контур</h2>
+        <p class="muted sub">
+          Форма показывает, как выглядит приём оценки. Запись остаётся в браузере и ни на что не влияет.
+        </p>
 
         <form @submit.prevent="submitReview" class="review-form">
           <div class="field">
@@ -380,13 +340,14 @@ const satisfactionRadarOption = computed(() => {
           <button type="submit" class="btn-primary">Зафиксировать отзыв</button>
 
           <p v-if="submittedNotice" class="success-notice">
-            Отзыв зафиксирован в мониторинге качества.
+            Запись добавлена в ленту как демонстрационная — в показатели она не попадает.
           </p>
         </form>
       </div>
     </div>
   </div>
 </template>
+
 
 <style scoped>
 .stack { display: flex; flex-direction: column; gap: 24px; }
@@ -398,6 +359,7 @@ const satisfactionRadarOption = computed(() => {
   gap: 14px;
 }
 
+.two-col-grid > * { min-width: 0; }
 .two-col-grid {
   display: grid;
   grid-template-columns: 1.2fr 1fr;
@@ -407,6 +369,7 @@ const satisfactionRadarOption = computed(() => {
   .two-col-grid { grid-template-columns: 1fr; }
 }
 
+.reviews-section-grid > * { min-width: 0; }
 .reviews-section-grid {
   display: grid;
   grid-template-columns: 1.4fr 1fr;
@@ -478,5 +441,22 @@ const satisfactionRadarOption = computed(() => {
   color: var(--success);
   font-weight: 600;
   margin-top: 4px;
+}
+.empty-feed {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 18px 16px;
+  margin-top: 14px;
+  border: 1px dashed var(--border);
+  border-radius: 8px;
+  font-size: 13px;
+  line-height: 1.55;
+}
+.empty-feed code {
+  font-size: 12px;
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: var(--surface-2, rgba(127, 127, 127, 0.14));
 }
 </style>

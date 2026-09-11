@@ -1,7 +1,7 @@
 [project]
 name = "hakaton-kek"
 version = "0.1.0"
-description = "A FastAPI starter project managed with uv"
+description = "Культурный пульс — аналитика сети центров прототипирования вузов культуры"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
@@ -20,7 +20,8 @@ entrypoint = "app.main:app"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-pythonpath = ["."]
+# Пакет `app` живёт в backend/ — оттуда его и импортируют тесты.
+pythonpath = ["backend"]
 
 [tool.ruff]
 target-version = "py312"
