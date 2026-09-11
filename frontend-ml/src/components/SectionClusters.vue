@@ -227,8 +227,32 @@ const scatterMapOption = computed(() => {
         </div>
 
         <div class="distinctive-box">
-          <strong>Отличительная черта архетипа:</strong>
-          <p class="muted">{{ selectedProfile.distinctive }}</p>
+          <div class="distinctive-title">
+            <strong>Отличительные черты архетипа:</strong>
+            <span v-if="selectedProfile.summary" class="distinctive-sub">{{ selectedProfile.summary }}</span>
+          </div>
+
+          <div v-if="Array.isArray(selectedProfile.distinctive) && selectedProfile.distinctive.length" class="traits-grid">
+            <div
+              v-for="(trait, ti) in selectedProfile.distinctive"
+              :key="ti"
+              class="trait-card"
+            >
+              <div class="trait-main">
+                <span class="trait-bullet">•</span>
+                <span class="trait-name">{{ trait.label || trait.description }}</span>
+                <span v-if="trait.label && trait.description" class="trait-desc muted">({{ trait.description }})</span>
+              </div>
+              <span
+                v-if="trait.z !== undefined"
+                class="trait-badge mono-nums"
+                :class="trait.z > 0 ? 'badge-good' : 'badge-neutral'"
+              >
+                {{ trait.z > 0 ? '+' : '' }}{{ typeof trait.z === 'number' ? trait.z.toFixed(2) : trait.z }}σ
+              </span>
+            </div>
+          </div>
+          <p v-else class="muted">{{ selectedProfile.summary || 'Нет специфических отклонений' }}</p>
         </div>
       </div>
     </div>
@@ -373,10 +397,60 @@ const scatterMapOption = computed(() => {
 
 .distinctive-box {
   margin-top: 14px;
-  padding: 12px;
+  padding: 12px 14px;
   background: var(--raised);
+  border: 1px solid var(--border);
   border-radius: 8px;
   font-size: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.distinctive-title {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.distinctive-sub {
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+.traits-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.trait-card {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: var(--surface);
+  padding: 6px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  gap: 8px;
+}
+.trait-main {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.trait-bullet {
+  color: var(--accent);
+  font-weight: bold;
+}
+.trait-name {
+  font-weight: 500;
+}
+.trait-desc {
+  font-size: 11px;
+}
+.trait-badge {
+  font-size: 11px;
+  padding: 1px 6px;
+  border-radius: 4px;
+  white-space: nowrap;
 }
 
 .section-header-row {

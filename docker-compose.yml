@@ -8,7 +8,7 @@ services:
     environment:
       - CULTURE_PULSE_DATA=/app/DATASET
       - GEMINI_API_KEY=AQ.Ab8RN6K8-sg6eZ2ru31kJofFpAki3j3bjOZg_uIkZLigNfAHKw
-      - GEMINI_MODEL=gemini-2.0-flash
+      - GEMINI_MODEL=gemini-flash-lite-latest
     expose:
       - "8010"
     ports:
