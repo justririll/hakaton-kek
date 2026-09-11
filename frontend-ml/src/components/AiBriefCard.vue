@@ -155,9 +155,18 @@ onMounted(() => {
     </div>
 
     <!-- Загрузка -->
-    <div v-if="loading && !summary" class="ai-loading">
-      <div class="ai-pulse-bar" />
-      <span class="muted">Формирование аналитической записки по показателям сети...</span>
+    <div v-if="loading && !summary" class="ai-skeleton" aria-busy="true" aria-live="polite">
+      <div class="sk-line" style="width: 94%" />
+      <div class="sk-line" style="width: 100%" />
+      <div class="sk-line" style="width: 76%" />
+      <div class="sk-footer">
+        <div class="sk-chips">
+          <span class="sk-chip" style="width: 132px" />
+          <span class="sk-chip" style="width: 168px" />
+          <span class="sk-chip" style="width: 150px" />
+        </div>
+        <span class="muted sk-note">Собираем бриф…</span>
+      </div>
     </div>
 
     <!-- Ошибка -->
@@ -198,10 +207,6 @@ onMounted(() => {
         </div>
       </div>
 
-      <!-- Подвал -->
-      <div class="ai-footer muted">
-        <span>Сформировано: {{ summary.generated_at }}</span>
-      </div>
     </div>
 
     <!-- Краткий вид если свернуто -->
@@ -302,22 +307,57 @@ onMounted(() => {
   to { transform: rotate(360deg); }
 }
 
-.ai-loading {
-  padding: 24px 0;
+/* Скелетон повторяет раскладку свёрнутого брифа: три строки текста и ряд
+   чипов с разделами. Высота совпадает с будущим содержимым, поэтому при
+   появлении текста карточка не подпрыгивает. */
+.ai-skeleton {
+  background: var(--raised);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 14px 16px;
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  font-size: 13px;
+  gap: 10px;
 }
-.ai-pulse-bar {
-  height: 3px;
-  border-radius: 2px;
-  background: linear-gradient(90deg, transparent, var(--purple), transparent);
-  animation: pulseBar 1.5s infinite linear;
+.sk-line,
+.sk-chip {
+  border-radius: 6px;
+  background: linear-gradient(
+    90deg,
+    var(--border) 25%,
+    var(--raised-hover) 37%,
+    var(--border) 63%
+  );
+  background-size: 400% 100%;
+  animation: skShimmer 1.4s ease infinite;
 }
-@keyframes pulseBar {
-  0% { transform: translateX(-100%); }
-  100% { transform: translateX(100%); }
+.sk-line { height: 11px; }
+.sk-chip { height: 20px; border-radius: 999px; }
+.sk-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding-top: 12px;
+  margin-top: 2px;
+  border-top: 1px solid var(--border);
+}
+.sk-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.sk-note { font-size: 12px; white-space: nowrap; }
+
+@keyframes skShimmer {
+  0% { background-position: 100% 50%; }
+  100% { background-position: 0 50%; }
+}
+
+/* Без анимации блик превращается в ровную заливку — форма остаётся понятной. */
+@media (prefers-reduced-motion: reduce) {
+  .sk-line,
+  .sk-chip {
+    animation: none;
+    background: var(--border);
+  }
 }
 
 .ai-error {
@@ -394,16 +434,6 @@ onMounted(() => {
   color: var(--text-primary);
 }
 
-.ai-footer {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 10px;
-  font-size: 11px;
-  padding-top: 8px;
-  border-top: 1px solid var(--border);
-}
 .ai-meta-left { display: flex; gap: 8px; flex-wrap: wrap; }
 
 .ai-collapsed-preview {

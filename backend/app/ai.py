@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 import logging
 import os
 import time
@@ -49,6 +50,66 @@ def _load_cache() -> None:
                 _ai_cache = json.load(f)
         except Exception as err:
             log.warning("Не удалось загрузить кэш AI с диска: %s", err)
+
+
+# Число целиком: цифры вместе с разделителями разрядов и дробной частью.
+_NUMBER_RE = re.compile(r"\d[\d\s\u00a0.,]*\d|\d")
+
+
+def _readings(raw: str) -> set[str]:
+    """Возможные прочтения числа.
+
+    В данных разряды разделены пробелом («2 844»), а модель нередко пишет их
+    запятой («2,844») — и та же запятая в русском тексте может быть десятичной.
+    Поэтому число сравнивается по обоим прочтениям: если совпало хоть одно,
+    величина считается взятой из данных.
+    """
+    body = raw.replace("\u00a0", "").replace(" ", "")
+    decimal = body.replace(",", ".").rstrip(".")
+    grouped = body.replace(",", "").rstrip(".")
+    return {v for v in (decimal, grouped) if v}
+
+
+def _unsupported_numbers(text: str, facts: str) -> list[str]:
+    """Числа, которых не было в переданных модели фактах.
+
+    Модель уверенно перевирает цифры: медиану 0.55 она выдала как 5,55,
+    слепив её с соседней суммой 5 532. Проверять каждую цифру глазами на
+    защите невозможно, поэтому ответ с непрослеживаемым числом бракуется.
+
+    Мелкие целые пропускаются: это нумерация пунктов, кварталы и месяцы.
+    """
+    supplied: set[str] = set()
+    for match in _NUMBER_RE.findall(facts):
+        supplied |= _readings(match)
+
+    bad: list[str] = []
+    for match in _NUMBER_RE.findall(text):
+        variants = _readings(match)
+        if variants & supplied:
+            continue
+        numeric = [float(v) for v in variants if _is_number(v)]
+        if not numeric:
+            continue
+        if all(_is_incidental(n) for n in numeric):
+            continue
+        bad.append(match.strip())
+    return bad
+
+
+def _is_incidental(number: float) -> bool:
+    """Число, не являющееся показателем: нумерация, квартал, месяц, год."""
+    if not number.is_integer():
+        return False
+    return abs(number) < 100 or 1900 <= number <= 2100
+
+
+def _is_number(value: str) -> bool:
+    try:
+        float(value)
+    except ValueError:
+        return False
+    return True
 
 
 def _fingerprint(prompt: str) -> str:
@@ -310,6 +371,7 @@ def synthesize_org_report(org_id: str, state: Any) -> str:
     cluster_id = state.cluster_of(org_id)
     cluster_profile = next((p for p in state.clustering.profiles if p.cluster_id == cluster_id), None)
     cluster_name = cluster_profile.name if cluster_profile else f"Кластер {cluster_id}"
+    cluster_summary = cluster_profile.summary if cluster_profile else "характеристика не рассчитана"
 
     plan_row = state.plan.loc[org_id] if org_id in state.plan.index else {}
     plan_status = plan_row.get("status", "в графике")
@@ -344,7 +406,7 @@ def synthesize_org_report(org_id: str, state: Any) -> str:
     peer_rev_str = f"{peer_rev:,.0f} ₽".replace(",", " ")
 
     return f"""### Роль центра в сети и архетип
-Центр прототипирования «{short_name}» ({full_name}) осуществляет деятельность в рамках аудиторного архетипа «{cluster_name}». Организация ориентирована на прикладное обучение творческих резидентов региона и выполняет связующую роль между академическим образованием и современными цифровыми мастерскими.
+Центр прототипирования «{short_name}» ({full_name}) отнесён к аудиторному архетипу «{cluster_name}». Отличительные черты этой модели: {cluster_summary}. Сравнение ниже ведётся только с центрами того же архетипа — сопоставлять камерную мастерскую с многотысячным институтом культуры некорректно.
 
 ### Сильные стороны и точки уязвимости
 - **Статус выполнения годового плана:** Текущее выполнение составляет {plan_comp}% (факт {fact} из {target} ед., статус: {plan_status}).
@@ -427,7 +489,15 @@ def get_network_ai_summary(state: Any, force_refresh: bool = False) -> dict[str,
 
     res = call_gemini(prompt, max_output_tokens=4096)
 
-    if res["status"] == "ok" and len(res["text"]) >= 350 and "###" in res["text"]:
+    accepted = res["status"] == "ok" and len(res["text"]) >= 350 and "###" in res["text"]
+    if accepted:
+        stray = _unsupported_numbers(res["text"], prompt)
+        if stray:
+            log.warning("Сетевой бриф отклонён: числа вне данных — %s", ", ".join(stray[:5]))
+            accepted = False
+            res = dict(res, error=f"модель назвала числа, которых нет в данных: {', '.join(stray[:3])}")
+
+    if accepted:
         output = {
             "status": "ok",
             "model": res["model"],
@@ -483,6 +553,7 @@ def get_org_ai_summary(org_id: str, state: Any, force_refresh: bool = False) -> 
     cluster_id = state.cluster_of(org_id)
     cluster_profile = next((p for p in state.clustering.profiles if p.cluster_id == cluster_id), None)
     cluster_name = cluster_profile.name if cluster_profile else f"Кластер {cluster_id}"
+    cluster_summary = cluster_profile.summary if cluster_profile else "характеристика не рассчитана"
 
     plan_row = state.plan.loc[org_id] if org_id in state.plan.index else {}
     plan_status = plan_row.get("status", "в графике")
@@ -505,22 +576,32 @@ def get_org_ai_summary(org_id: str, state: Any, force_refresh: bool = False) -> 
 ДАННЫЕ ОРГАНИЗАЦИИ ЗА 9 МЕСЯЦЕВ 2026:
 - Организация: {full_name} ({short_name})
 - Аудиторный архетип: {cluster_name} (модель №{cluster_id + 1})
-- Обучено участников: {profile.get('audience_total', 0):,} чел.
-- Проведено форматов: {profile.get('supply_total', 0)} ед.
-- Выпущено арт-продуктов: {profile.get('products_total', 0):,} ед. (конверсия: {profile.get('product_rate', 0):.2f} работ/участника)
-- Выручка от платных услуг: {profile.get('revenue_total', 0):,.0f} руб.
-- Выполнение годового плана: {plan_comp}% (факт {fact} из {target} ед., статус: {plan_status}).
+- Чем отличается этот архетип: {cluster_summary}
+- Обучено участников: {_ru(profile.get('audience_total', 0))} чел.
+- Проведено форматов: {_ru(profile.get('supply_total', 0))} ед.
+- Выпущено арт-продуктов: {_ru(profile.get('products_total', 0))} ед. (конверсия: {profile.get('product_rate', 0):.2f} работ на участника)
+- Выручка от платных услуг: {_ru(profile.get('revenue_total', 0))} руб.
+- Выполнение годового плана: {plan_comp}% (факт {_ru(fact)} из {_ru(target, 1)} ед., статус: {plan_status}).
 
 ВЫЯВЛЕННЫЕ РЕКОМЕНДАЦИИ И РЕЗЕРВЫ:
 {actions_text}
 
+ЖЁСТКОЕ ОГРАНИЧЕНИЕ ПО ЧИСЛАМ:
+- Используй ТОЛЬКО числа из блоков выше и переноси их ровно в том виде, как они записаны.
+- Не пересчитывай, не округляй и не выводи новых величин. Не путай медиану конверсии с медианой выручки.
+- Если нужного числа в данных нет — не называй его и не оценивай его словами.
+
 ТРЕБОВАНИЯ К ОТВЕТУ:
 - Строго на русском языке. Профессиональный деловой стиль. Без эмодзи.
+- Никаких общих слов о роли культуры, креативных индустрий и миссии центра.
+- Пиши связным текстом и объясняй, что показатель означает для руководителя.
+  Не переписывай блок данных списком и не повторяй одно и то же число дважды.
+- Называй только те величины, которые нужны для вывода: две-три на раздел, не больше.
 - ПРЯМО выводи только готовый текст ответа, без черновиков и без самопроверки.
 - СТРОГО соблюдай следующую структуру:
 
 ### Роль центра в сети и архетип
-(1-2 содержательных предложения о позиционировании и специфике центра в рамках модели «{cluster_name}»)
+(1-2 предложения СТРОГО на основе характеристики архетипа выше. Не придумывай миссию, ценности и «позиционирование» центра — этих сведений в отчётности нет.)
 
 ### Сильные стороны и точки уязвимости
 - **Сильные стороны:** (ключевые успехи, темп выполнения плана, особенности работы с аудиторией)
@@ -541,7 +622,15 @@ def get_org_ai_summary(org_id: str, state: Any, force_refresh: bool = False) -> 
 
     res = call_gemini(prompt, max_output_tokens=4096)
 
-    if res["status"] == "ok" and len(res["text"]) >= 350 and "###" in res["text"]:
+    accepted = res["status"] == "ok" and len(res["text"]) >= 350 and "###" in res["text"]
+    if accepted:
+        stray = _unsupported_numbers(res["text"], prompt)
+        if stray:
+            log.warning("Разбор %s отклонён: числа вне данных — %s", org_id, ", ".join(stray[:5]))
+            accepted = False
+            res = dict(res, error=f"модель назвала числа, которых нет в данных: {', '.join(stray[:3])}")
+
+    if accepted:
         output = {
             "status": "ok",
             "org_id": org_id,
