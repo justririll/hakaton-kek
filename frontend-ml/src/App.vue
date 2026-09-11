@@ -19,12 +19,12 @@ import ExecutiveSummaryModal from "./components/ExecutiveSummaryModal.vue"
 
 const SECTIONS = [
   { key: "story", label: "Главное", icon: "activity" },
-  { key: "dynamics", label: "Посещаемость и динамика", icon: "trending-up" },
-  { key: "feedback", label: "Обратная связь и вовлеченность", icon: "message-square" },
-  { key: "clusters", label: "Кластеризация аудитории", icon: "layers" },
-  { key: "recommendations", label: "Рекомендации и симулятор", icon: "zap" },
+  { key: "dynamics", label: "Динамика", icon: "trending-up" },
+  { key: "feedback", label: "Обратная связь", icon: "message-square" },
+  { key: "clusters", label: "Модели аудитории", icon: "layers" },
+  { key: "recommendations", label: "Рекомендации", icon: "zap" },
   { key: "organizations", label: "Каталог центров", icon: "building" },
-  { key: "quality", label: "Контроль качества данных", icon: "shield-check" },
+  { key: "quality", label: "Качество данных", icon: "shield-check" },
 ]
 
 const active = ref("story")
@@ -345,25 +345,36 @@ onMounted(async () => {
 
 .main-nav {
   display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
-  margin: 22px 0 26px;
-  padding: 4px;
+  flex-wrap: nowrap;
+  gap: 6px;
+  margin: 20px 0 24px;
+  padding: 5px;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 12px;
   box-shadow: var(--shadow-sm);
   overflow-x: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.main-nav::-webkit-scrollbar {
+  display: none;
 }
 .nav-tab {
+  flex: 1;
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
   border: 1px solid transparent;
   border-radius: 8px;
   font-size: 13px;
   font-weight: 600;
-  padding: 8px 14px;
+  padding: 8px 10px;
   color: var(--text-secondary);
   white-space: nowrap;
+  flex-shrink: 0;
   gap: 7px;
+  transition: all 0.15s ease;
 }
 .nav-tab:hover {
   color: var(--text-primary);
