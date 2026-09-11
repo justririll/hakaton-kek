@@ -342,6 +342,24 @@ input[type='text']:focus, input[type='search']:focus, select:focus {
   background: var(--raised);
 }
 
+@media (max-width: 680px) {
+  .modal-overlay {
+    padding: 8px 6px;
+  }
+  .modal-container {
+    border-radius: 14px;
+    max-height: 96vh;
+    width: 100%;
+  }
+  .modal-header {
+    padding: 12px 14px;
+  }
+  .modal-body {
+    padding: 14px 12px;
+    gap: 16px;
+  }
+}
+
 @keyframes fadeIn {
   from { opacity: 0; }
   to { opacity: 1; }

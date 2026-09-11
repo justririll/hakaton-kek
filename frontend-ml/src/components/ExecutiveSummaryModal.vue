@@ -29,15 +29,20 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown))
     <div class="modal-container print-area">
       <div class="modal-header no-print">
         <div class="header-info">
-          <span class="badge badge-accent">Служебная аналитическая записка</span>
+          <div class="header-top-row">
+            <span class="badge badge-accent">Служебная аналитическая записка</span>
+            <button class="close-btn mobile-only-close" @click="emit('close')" title="Закрыть">
+              <Icon name="x" :size="18" />
+            </button>
+          </div>
           <h2>Сводный управленческий бриф сети центров</h2>
         </div>
         <div class="actions">
-          <button class="btn-primary" @click="printReport">
+          <button class="btn-primary btn-print" @click="printReport">
             <Icon name="printer" :size="14" />
             <span>Распечатать / PDF</span>
           </button>
-          <button class="close-btn" @click="emit('close')" title="Закрыть">
+          <button class="close-btn desktop-only-close" @click="emit('close')" title="Закрыть">
             <Icon name="x" :size="16" />
           </button>
         </div>
@@ -150,7 +155,12 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown))
 
 <style scoped>
 .header-info { display: flex; flex-direction: column; gap: 4px; }
+.header-top-row { display: flex; align-items: center; gap: 8px; }
+.mobile-only-close { display: none; }
+.desktop-only-close { display: inline-flex; align-items: center; justify-content: center; }
 .actions { display: flex; align-items: center; gap: 8px; }
+.btn-print { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+
 .report-header { border-bottom: 1px solid var(--border); padding-bottom: 16px; }
 .report-header h1 { font-size: 18px; font-weight: 700; }
 .report-section { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }
@@ -174,7 +184,14 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown))
 .m-label { font-size: 11px; color: var(--muted); text-transform: uppercase; }
 .m-value { font-size: 18px; font-weight: 700; color: var(--text-primary); font-variant-numeric: tabular-nums; }
 
-.report-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.clusters-table-wrap {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+}
+.report-table { width: 100%; min-width: 460px; border-collapse: collapse; font-size: 13px; }
 .report-table th, .report-table td { padding: 8px 12px; border: 1px solid var(--border); }
 .report-table th { background: var(--raised); }
 
@@ -197,6 +214,75 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown))
 
 .action-plan { padding-left: 20px; margin: 0; font-size: 13px; display: flex; flex-direction: column; gap: 6px; }
 .report-footer { border-top: 1px solid var(--border); padding-top: 12px; margin-top: 14px; font-size: 11px; text-align: center; }
+
+@media (max-width: 680px) {
+  .modal-header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+    padding: 12px 14px;
+  }
+  .header-info {
+    width: 100%;
+    gap: 6px;
+  }
+  .header-top-row {
+    justify-content: space-between;
+    width: 100%;
+  }
+  .mobile-only-close {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 4px 6px;
+  }
+  .desktop-only-close {
+    display: none !important;
+  }
+  .header-info h2 {
+    font-size: 15px;
+    line-height: 1.3;
+    margin: 0;
+  }
+  .actions {
+    width: 100%;
+  }
+  .btn-print {
+    width: 100%;
+    justify-content: center;
+    padding: 9px 14px;
+    font-size: 13px;
+    font-weight: 600;
+  }
+  .report-header h1 {
+    font-size: 15px;
+    line-height: 1.35;
+  }
+  .metrics-row {
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+  .m-card {
+    padding: 9px 10px;
+  }
+  .m-value {
+    font-size: 15px;
+  }
+  .m-label {
+    font-size: 10px;
+  }
+  .impact-grid {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+  .impact-box {
+    padding: 10px 12px;
+  }
+  .action-plan {
+    padding-left: 18px;
+    font-size: 12px;
+  }
+}
 
 @media print {
   .no-print { display: none !important; }
