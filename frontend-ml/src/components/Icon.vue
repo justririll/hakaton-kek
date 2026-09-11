@@ -162,6 +162,11 @@ defineProps({
       <path d="M21 12a9 9 0 0 1-15 6.7L3 16" />
     </g>
 
+    <!-- chevrons -->
+    <polyline v-else-if="name === 'chevron-left'" points="15 18 9 12 15 6" />
+    <polyline v-else-if="name === 'chevron-right'" points="9 18 15 12 9 6" />
+    <polyline v-else-if="name === 'chevron-down'" points="6 9 12 15 18 9" />
+
     <!-- info -->
     <g v-else>
       <circle cx="12" cy="12" r="10" />

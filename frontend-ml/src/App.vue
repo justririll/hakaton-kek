@@ -4,7 +4,7 @@
  * Навигация по разделам, быстрый выбор центров,
  * экспресс-отчет для руководства и переключение тем.
  */
-import { onMounted, ref } from "vue"
+import { onMounted, ref, computed } from "vue"
 import { api } from "./api"
 import Icon from "./components/Icon.vue"
 import SectionStory from "./components/SectionStory.vue"
@@ -32,6 +32,23 @@ const loading = ref(true)
 const error = ref(null)
 const data = ref({})
 const theme = ref(document.documentElement.dataset.theme || "system")
+
+const activeSectionIndex = computed(() => SECTIONS.findIndex((s) => s.key === active.value))
+const currentSection = computed(() => SECTIONS[activeSectionIndex.value] || SECTIONS[0])
+
+function prevSection() {
+  if (activeSectionIndex.value > 0) {
+    active.value = SECTIONS[activeSectionIndex.value - 1].key
+    window.scrollTo({ top: 0, behavior: "smooth" })
+  }
+}
+
+function nextSection() {
+  if (activeSectionIndex.value < SECTIONS.length - 1) {
+    active.value = SECTIONS[activeSectionIndex.value + 1].key
+    window.scrollTo({ top: 0, behavior: "smooth" })
+  }
+}
 
 // Модальные окна
 const selectedOrgId = ref(null)
@@ -136,8 +153,8 @@ onMounted(async () => {
       </div>
     </header>
 
-    <!-- Горизонтальная навигация по 7 разделам -->
-    <nav class="main-nav">
+    <!-- Десктопная горизонтальная навигация по 7 разделам (на экранах > 860px) -->
+    <nav class="main-nav desktop-nav">
       <button
         v-for="section in SECTIONS"
         :key="section.key"
@@ -147,6 +164,45 @@ onMounted(async () => {
       >
         <Icon :name="section.icon" :size="15" />
         <span>{{ section.label }}</span>
+      </button>
+    </nav>
+
+    <!-- Мобильный селектор разделов (на экранах <= 860px) - без необходимости листать вкладки! -->
+    <nav class="mobile-nav-bar">
+      <button
+        class="mobile-nav-arrow"
+        :disabled="activeSectionIndex <= 0"
+        @click="prevSection"
+        title="Предыдущий раздел"
+      >
+        <Icon name="chevron-left" :size="16" />
+      </button>
+
+      <div class="mobile-nav-dropdown">
+        <Icon :name="currentSection.icon" :size="16" class="dropdown-icon" />
+        <select v-model="active" class="mobile-section-select">
+          <option
+            v-for="(section, idx) in SECTIONS"
+            :key="section.key"
+            :value="section.key"
+          >
+            {{ idx + 1 }}. {{ section.label }}
+          </option>
+        </select>
+        <div class="dropdown-display">
+          <span class="dropdown-label">{{ currentSection.label }}</span>
+          <span class="dropdown-counter">{{ activeSectionIndex + 1 }}/{{ SECTIONS.length }}</span>
+        </div>
+        <Icon name="chevron-down" :size="14" class="dropdown-chevron" />
+      </div>
+
+      <button
+        class="mobile-nav-arrow"
+        :disabled="activeSectionIndex >= SECTIONS.length - 1"
+        @click="nextSection"
+        title="Следующий раздел"
+      >
+        <Icon name="chevron-right" :size="16" />
       </button>
     </nav>
 
@@ -423,6 +479,10 @@ onMounted(async () => {
   gap: 12px;
 }
 
+.mobile-nav-bar {
+  display: none;
+}
+
 @media (max-width: 860px) {
   .shell {
     padding: 12px 12px 60px;
@@ -456,19 +516,98 @@ onMounted(async () => {
     padding: 6px 10px;
     font-size: 12px;
   }
-  .main-nav {
-    margin: 12px 0 16px;
-    padding: 4px;
-    gap: 6px;
-    -webkit-overflow-scrolling: touch;
-    scroll-snap-type: x mandatory;
+  .desktop-nav {
+    display: none !important;
   }
-  .nav-tab {
-    flex: 0 0 auto;
-    padding: 7px 13px;
-    font-size: 12px;
-    gap: 6px;
-    scroll-snap-align: start;
+  .mobile-nav-bar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 12px 0 18px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 6px;
+    box-shadow: var(--shadow-sm);
+  }
+  .mobile-nav-arrow {
+    width: 38px;
+    height: 38px;
+    border-radius: 8px;
+    background: var(--raised);
+    border: 1px solid var(--border);
+    display: grid;
+    place-items: center;
+    color: var(--text-primary);
+    flex-shrink: 0;
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+  .mobile-nav-arrow:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+  }
+  .mobile-nav-arrow:not(:disabled):active {
+    background: var(--accent);
+    color: #ffffff;
+  }
+  .mobile-nav-dropdown {
+    position: relative;
+    flex: 1;
+    display: flex;
+    align-items: center;
+    background: var(--raised);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 0 12px;
+    height: 38px;
+    gap: 8px;
+    cursor: pointer;
+  }
+  .dropdown-icon {
+    color: var(--accent);
+    flex-shrink: 0;
+  }
+  .dropdown-display {
+    flex: 1;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    min-width: 0;
+  }
+  .dropdown-label {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .dropdown-counter {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--muted);
+    background: var(--surface);
+    padding: 2px 6px;
+    border-radius: 4px;
+    margin-left: 6px;
+    flex-shrink: 0;
+  }
+  .dropdown-chevron {
+    color: var(--muted);
+    flex-shrink: 0;
+  }
+  .mobile-section-select {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    width: 100%;
+    height: 100%;
+    opacity: 0;
+    cursor: pointer;
+    -webkit-appearance: menulist-button;
   }
 }
 </style>
