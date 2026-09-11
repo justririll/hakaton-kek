@@ -1,7 +1,7 @@
 [project]
 name = "hakaton-kek"
 version = "0.1.0"
-description = "Культурный пульс — аналитика сети центров прототипирования вузов культуры"
+description = "VitDashboard — аналитика сети центров прототипирования вузов культуры"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [

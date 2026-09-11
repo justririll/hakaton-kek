@@ -6,7 +6,7 @@ WORKDIR /app
 # docker-compose.yml. Образ с секретом внутри утекает вместе с реестром.
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
-    CULTURE_PULSE_DATA=/app/DATASET
+    VSS_DATA=/app/DATASET
 
 RUN pip install --no-cache-dir \
     "fastapi>=0.115" \

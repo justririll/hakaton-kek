@@ -1,4 +1,4 @@
-"""HTTP-слой платформы «Культурный пульс».
+"""HTTP-слой платформы VitDashboard (Vitaliy Software Solutions).
 
 Приложение отдаёт результат аналитического конвейера. Модели считаются один
 раз на старте и живут в памяти процесса: исходных данных двадцать отчётов,
@@ -22,10 +22,14 @@ from app.ingest.schema import BY_KEY, CHANNELS
 from app.ml.pipeline import Analytics, build_analytics, overview
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(message)s")
-log = logging.getLogger("culture-pulse")
+log = logging.getLogger("vss")
 
 DEFAULT_SOURCE = Path(__file__).resolve().parents[2] / "DATASET"
-SOURCE_DIR = Path(os.getenv("CULTURE_PULSE_DATA", DEFAULT_SOURCE))
+SOURCE_DIR = Path(
+    # CULTURE_PULSE_DATA — прежнее имя переменной; читается как запасное,
+    # чтобы развёрнутый ранее контейнер не остался без каталога отчётов.
+    os.getenv("VSS_DATA") or os.getenv("CULTURE_PULSE_DATA") or DEFAULT_SOURCE
+)
 
 _state: dict[str, Analytics] = {}
 
@@ -47,7 +51,7 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(
-    title="Культурный пульс",
+    title="VitDashboard",
     description=(
         "Аналитика сети центров прототипирования и творческих инкубаторов вузов культуры: "
         "динамика, кластеризация аудиторных моделей, рекомендации по программированию."

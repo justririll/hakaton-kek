@@ -16,7 +16,7 @@ import random
 from pathlib import Path
 from typing import Any
 
-log = logging.getLogger("culture-pulse.ai")
+log = logging.getLogger("vss.ai")
 
 # Ключ берётся только из окружения: в репозитории ему не место.
 # Без него AI-слой отключается, а витрина работает на детерминированном резюме.
@@ -24,7 +24,7 @@ GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
 GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-flash-lite-latest")
 
 # Кэш ответов (в памяти + файл на диске для переживания перезапусков)
-_CACHE_FILE = Path(os.getenv("AI_CACHE_FILE", "/tmp/culture_pulse_ai_cache.json"))
+_CACHE_FILE = Path(os.getenv("AI_CACHE_FILE", "/tmp/vss_ai_cache.json"))
 _ai_cache: dict[str, dict[str, Any]] = {}
 
 

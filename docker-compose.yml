@@ -3,10 +3,10 @@ services:
     build:
       context: .
       dockerfile: backend/Dockerfile
-    container_name: culture-pulse-backend
+    container_name: vss-backend
     restart: unless-stopped
     environment:
-      - CULTURE_PULSE_DATA=/app/DATASET
+      - VSS_DATA=/app/DATASET
       # Ключ берётся из .env рядом с этим файлом и в репозиторий не попадает.
       # Без ключа AI-слой выключается, остальная витрина работает как обычно.
       - GEMINI_API_KEY=${GEMINI_API_KEY:-}
@@ -20,7 +20,7 @@ services:
     build:
       context: .
       dockerfile: frontend-ml/Dockerfile
-    container_name: culture-pulse-frontend
+    container_name: vss-frontend
     restart: unless-stopped
     ports:
       - "80:80"
@@ -41,7 +41,7 @@ services:
   # чему осталось меньше 30 дней, и ничего не делает в остальное время.
   certbot:
     image: certbot/certbot
-    container_name: culture-pulse-certbot
+    container_name: vss-certbot
     restart: unless-stopped
     volumes:
       - ./certbot/conf:/etc/letsencrypt

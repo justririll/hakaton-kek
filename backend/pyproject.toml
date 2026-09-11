@@ -1,5 +1,5 @@
 [project]
-name = "culture-pulse-backend"
+name = "vss-backend"
 version = "0.1.0"
 description = "Аналитическая платформа учреждений культуры: динамика, кластеризация аудитории, рекомендации по программированию"
 requires-python = ">=3.11"

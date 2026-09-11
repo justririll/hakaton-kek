@@ -1,6 +1,6 @@
 <script setup>
 /**
- * Корневой экран платформы «Культурный пульс»:
+ * Корневой экран платформы VitDashboard (Vitaliy Software Solutions):
  * Навигация по разделам, быстрый выбор центров,
  * экспресс-отчет для руководства и переключение тем.
  */
@@ -113,11 +113,8 @@ onMounted(async () => {
         </div>
         <div>
           <div class="title-row">
-            <h1>Культурный пульс</h1>
-            <span class="live-status">
-              <span class="pulse-indicator" />
-              <span>20 центров онлайн</span>
-            </span>
+            <h1>VitDashboard</h1>
+            <span class="vendor">by Vitaliy Software Solutions</span>
           </div>
           <p class="muted subtitle">Аналитика сети центров прототипирования и программирование мероприятий</p>
         </div>
@@ -352,6 +349,14 @@ onMounted(async () => {
 }
 .title-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
 .title-row h1 { font-size: 20px; font-weight: 700; letter-spacing: -0.02em; }
+/* Вендор подписью: заметен, но не спорит с названием продукта. */
+.vendor {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--muted);
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+}
 .live-status {
   display: inline-flex;
   align-items: center;
