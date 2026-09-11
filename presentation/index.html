@@ -1,0 +1,578 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ВитДашборд — защита проекта за 7 минут</title>
+<style>
+/* ── шрифты ──────────────────────────────────────────────────────────────── */
+@font-face{font-family:'Inter';src:url('fonts/inter-cyrillic.woff2') format('woff2');font-weight:400 700;font-display:swap;unicode-range:U+0301,U+0400-045F,U+0490-0491,U+04B0-04B1,U+2116}
+@font-face{font-family:'Inter';src:url('fonts/inter-latin.woff2') format('woff2');font-weight:400 700;font-display:swap;unicode-range:U+0000-00FF,U+0131,U+2000-206F,U+2122,U+2191,U+2193,U+2212,U+2215}
+@font-face{font-family:'Literata';src:url('fonts/literata-cyrillic.woff2') format('woff2');font-weight:400 700;font-display:swap;unicode-range:U+0301,U+0400-045F,U+0490-0491,U+04B0-04B1,U+2116}
+@font-face{font-family:'Literata';src:url('fonts/literata-latin.woff2') format('woff2');font-weight:400 700;font-display:swap;unicode-range:U+0000-00FF,U+0131,U+2000-206F,U+2122,U+2212}
+@font-face{font-family:'JetBrains Mono';src:url('fonts/jetbrains-mono-cyrillic.woff2') format('woff2');font-weight:400 600;font-display:swap;unicode-range:U+0301,U+0400-045F,U+0490-0491,U+04B0-04B1,U+2116}
+@font-face{font-family:'JetBrains Mono';src:url('fonts/jetbrains-mono-latin.woff2') format('woff2');font-weight:400 600;font-display:swap;unicode-range:U+0000-00FF,U+0131,U+2000-206F,U+2122,U+2212}
+
+/* ── токены: те же, что у витрины ────────────────────────────────────────── */
+:root{
+  --paper:#f2efe8; --panel:#fcfaf6; --panel-2:#f7f4ed; --panel-3:#ede9df;
+  --ink:#1b1a17; --ink-2:#56534a; --ink-3:#84806f; --ink-inv:#fcfaf6;
+  --rule:#e3ded3; --rule-2:#d3ccbc; --rule-strong:#b9b1a0;
+  --c-0:#2b64a8; --c-1:#a76cb5; --c-2:#aa5131; --c-3:#9e962a; --c-4:#078e7d;
+  --good:#2f7d32; --warn:#a8760a; --crit:#b3332e;
+  --sans:'Inter',ui-sans-serif,system-ui,sans-serif;
+  --serif:'Literata',Georgia,serif;
+  --mono:'JetBrains Mono',ui-monospace,monospace;
+  color-scheme:light;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%}
+body{
+  background:#26241f;font-family:var(--sans);color:var(--ink);
+  -webkit-font-smoothing:antialiased;overflow:hidden;
+}
+
+/* ── сцена ───────────────────────────────────────────────────────────────── */
+#stage{position:fixed;inset:0;display:grid;place-items:center}
+#deck{width:1280px;height:720px;position:relative;transform-origin:center}
+.slide{
+  position:absolute;inset:0;background:var(--paper);
+  padding:56px 64px 64px;display:none;flex-direction:column;
+  border-radius:4px;overflow:hidden;
+}
+.slide.on{display:flex;animation:in .34s cubic-bezier(.22,1,.36,1) both}
+@keyframes in{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){.slide.on{animation:none}}
+
+/* ── типографика ─────────────────────────────────────────────────────────── */
+.eyebrow{font-family:var(--mono);font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-3)}
+h1{font-family:var(--serif);font-size:58px;line-height:1.04;letter-spacing:-.025em;margin:0;font-weight:600}
+h2{font-family:var(--serif);font-size:40px;line-height:1.1;letter-spacing:-.02em;margin:14px 0 0;font-weight:600}
+h3{font-family:var(--serif);font-size:22px;line-height:1.2;margin:0;font-weight:600}
+p{margin:0;font-size:18px;line-height:1.55;color:var(--ink-2)}
+.lede{font-size:21px;line-height:1.5;max-width:44ch}
+.small{font-size:15px;line-height:1.45}
+.tiny{font-size:13px;line-height:1.4;color:var(--ink-3)}
+b,strong{color:var(--ink);font-weight:600}
+.num{font-variant-numeric:tabular-nums}
+.fig{font-weight:600;letter-spacing:-.03em;color:var(--ink)}
+
+/* ── раскладки ───────────────────────────────────────────────────────────── */
+.head{border-bottom:1px solid var(--rule);padding-bottom:18px;margin-bottom:26px;flex:none}
+.body{flex:1;min-height:0;display:flex;flex-direction:column;justify-content:center;padding-bottom:16px}
+.body.top{justify-content:flex-start}
+.body.gap{gap:26px}
+.cols{display:grid;gap:28px;min-height:0}
+.c2{grid-template-columns:1fr 1fr}
+.c2w{grid-template-columns:1.15fr .85fr}
+.c3{grid-template-columns:repeat(3,1fr)}
+.c4{grid-template-columns:repeat(4,1fr)}
+.c5{grid-template-columns:repeat(5,1fr)}
+.panel{background:var(--panel);border:1px solid var(--rule);border-radius:5px;padding:18px 20px}
+.flat{background:none;border:none;padding:0}
+.rule{height:1px;background:var(--rule);margin:18px 0}
+.pipe{display:flex;align-items:center;gap:14px;flex-wrap:wrap;font-family:var(--mono);
+      font-size:12.5px;letter-spacing:.05em;color:var(--ink-2);
+      border-top:1px solid var(--rule);border-bottom:1px solid var(--rule);padding:16px 0;margin:0 0 4px}
+.pipe i{font-style:normal;color:var(--ink-3)}
+
+/* ── элементы ────────────────────────────────────────────────────────────── */
+.stat .k{font-size:13px;color:var(--ink-2);line-height:1.3}
+.stat .v{font-size:40px;line-height:1.05;margin-top:6px}
+.stat .u{font-size:15px;color:var(--ink-3);margin-left:4px;font-weight:400;letter-spacing:0}
+.stat .n{font-size:12.5px;color:var(--ink-3);margin-top:6px;line-height:1.35}
+.big .v{font-size:56px}
+ul.list{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:13px}
+ul.list li{display:flex;gap:12px;font-size:17px;line-height:1.45;color:var(--ink-2)}
+ul.list li .mk{flex:none;width:20px;font-family:var(--mono);font-size:12px;color:var(--ink-3);padding-top:4px;letter-spacing:.04em}
+.chip{display:inline-flex;align-items:center;gap:7px;border:1px solid var(--rule-2);border-radius:3px;padding:4px 9px;font-size:13px;color:var(--ink-2);white-space:nowrap}
+.chip .dot{width:8px;height:8px;border-radius:50%;flex:none}
+.chip.solid{background:var(--ink);color:var(--ink-inv);border-color:var(--ink)}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.shot{width:100%;border:1px solid var(--rule-2);border-radius:4px;display:block;
+      box-shadow:0 18px 44px -26px rgba(27,26,23,.5)}
+.shot.crop{height:100%;object-fit:cover;object-position:top left}
+.frame{overflow:hidden;border-radius:4px;flex:1;min-height:0;display:flex}
+.bar{height:6px;background:var(--panel-3);border-radius:99px;overflow:hidden;margin-top:8px}
+.bar > i{display:block;height:100%;border-radius:99px;background:var(--ink-2)}
+.kv{display:flex;justify-content:space-between;gap:14px;font-size:15px;padding:7px 0;border-bottom:1px solid var(--rule)}
+.kv:last-child{border-bottom:none}
+.kv b{font-variant-numeric:tabular-nums}
+.arrow{color:var(--ink-3);font-size:15px}
+
+/* ── подвал и навигация ──────────────────────────────────────────────────── */
+.foot{position:absolute;left:64px;right:64px;bottom:22px;display:flex;justify-content:space-between;
+      align-items:baseline;font-family:var(--mono);font-size:11px;letter-spacing:.08em;
+      text-transform:uppercase;color:var(--ink-3);pointer-events:none}
+#chrome{position:fixed;left:0;right:0;bottom:0;padding:10px 16px;display:flex;align-items:center;gap:14px;
+        color:#b8b2a4;font-family:var(--mono);font-size:11px;letter-spacing:.07em;background:linear-gradient(transparent,rgba(0,0,0,.45))}
+#track{flex:1;height:3px;background:rgba(255,255,255,.16);border-radius:99px;overflow:hidden}
+#track > i{display:block;height:100%;background:#e9e4d8;transition:width .3s}
+#clock{font-variant-numeric:tabular-nums;font-size:12px;color:#e9e4d8}
+#clock.over{color:#e0605a}
+#budget{font-variant-numeric:tabular-nums}
+#notes{position:fixed;right:16px;bottom:44px;width:380px;max-height:52vh;overflow:auto;background:#1a1a18;
+       color:#d8d3c6;border:1px solid #3a3833;border-radius:5px;padding:14px 16px;font-size:13px;line-height:1.5;display:none}
+#notes.on{display:block}
+#notes h4{margin:0 0 8px;font-family:var(--mono);font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;color:#84806f}
+#help{position:fixed;left:16px;top:16px;color:#8d877a;font-family:var(--mono);font-size:11px;letter-spacing:.06em}
+
+@page{size:1280px 720px;margin:0}
+@media print{
+  body{background:#fff;overflow:visible}
+  #stage{position:static;display:block}
+  #deck{width:auto;height:auto;transform:none!important}
+  .slide{display:flex!important;position:relative;inset:auto;width:1280px;height:720px;
+         page-break-after:always;break-after:page;border:none;border-radius:0;margin:0;animation:none}
+  .slide:last-child{page-break-after:auto;break-after:auto}
+  #chrome,#notes,#help{display:none}
+}
+</style>
+</head>
+<body>
+<div id="help">← → пролистать · S заметки · T таймер · F во весь экран</div>
+<div id="stage"><div id="deck">
+
+<!-- 1 ─ титул ──────────────────────────────────────────────────────────── -->
+<section class="slide" data-budget="0" data-note="Не начинаем отсчёт: слайд стоит на экране, пока нас представляют. Открыть демо в соседней вкладке заранее.">
+  <div class="body" style="justify-content:space-between">
+    <div>
+      <div class="eyebrow">Vitaliy Software Solutions · хакатон</div>
+      <h1 style="margin-top:22px;max-width:20ch">ВитДашборд</h1>
+      <p class="lede" style="margin-top:20px;max-width:52ch">
+        Аналитическая платформа сети центров прототипирования и творческих
+        инкубаторов при вузах культуры: динамика показателей, кластеризация
+        аудиторных моделей и адресные рекомендации по программированию.
+      </p>
+    </div>
+    <div class="pipe">
+      <span>DATASET · 20 книг Excel</span><i>→</i>
+      <span>разбор Форм 1 и 2</span><i>→</i>
+      <span>11 признаков</span><i>→</i>
+      <span>5 моделей</span><i>→</i>
+      <span>50 действий</span>
+    </div>
+    <div class="cols c4" style="gap:0;border-top:1px solid var(--rule);padding-top:22px">
+      <div class="stat"><div class="k">Центров в сети</div><div class="v fig num">20</div></div>
+      <div class="stat"><div class="k">Аудиторных моделей</div><div class="v fig num">5</div></div>
+      <div class="stat"><div class="k">Адресных мер</div><div class="v fig num">50</div></div>
+      <div class="stat"><div class="k">Резерв выручки</div><div class="v fig num">9,7<span class="u">млн ₽</span></div></div>
+    </div>
+  </div>
+  <div class="foot"><span>vitaliysoftware.duckdns.org</span><span>защита · 7 минут</span></div>
+</section>
+
+<!-- 2 ─ проблема ──────────────────────────────────────────────────────── -->
+<section class="slide" data-budget="25" data-note="Блок A1. Заход. Утверждение: отчётность есть, управления по ней нет. Не торопиться — это рамка всего выступления. Закончить фразой «мы превращаем эту отчётность в действия».">
+  <div class="head">
+    <div class="eyebrow">Проблема · 0:00–0:25</div>
+    <h2>Отчётность сдают. Решений по ней не принимают.</h2>
+  </div>
+  <div class="body">
+    <div class="cols c3">
+      <div class="panel">
+        <h3>Двадцать шаблонов</h3>
+        <p class="small" style="margin-top:10px">Каждый центр заполняет формы по-своему: где-то тысячи рублей подписаны рублями, где-то итог не сходится с подпунктами. Свести их вручную — работа на неделю.</p>
+      </div>
+      <div class="panel">
+        <h3>Сравнивать не с чем</h3>
+        <p class="small" style="margin-top:10px">Консерватория и центр цифрового контента работают с разной аудиторией. Сравнение «всех со всеми» даёт рейтинг, а не управленческий вывод.</p>
+      </div>
+      <div class="panel">
+        <h3>Видно только постфактум</h3>
+        <p class="small" style="margin-top:10px">К декабрю выясняется, что часть центров не вышла на план. В сентябре это уже видно в цифрах — но никто их не сводит.</p>
+      </div>
+    </div>
+    <div class="rule"></div>
+    <p class="lede" style="max-width:66ch">
+      <b>Мы сделали платформу, которая превращает эту отчётность в конкретные
+      управленческие действия.</b> Она развёрнута, работает и открыта по ссылке.
+    </p>
+  </div>
+  <div class="foot"><span>ВитДашборд</span><span>критерий 2 · актуальность</span></div>
+</section>
+
+<!-- 3 ─ что в датасете ────────────────────────────────────────────────── -->
+<section class="slide" data-budget="45" data-note="Блок A2. Проблема доказывается самим датасетом. Назвать три числа: 26 правок, 17 противоречий, 13 центров с пометками. Ключевая фраза: «мы не чинили данные молча — каждая правка записана».">
+  <div class="head">
+    <div class="eyebrow">Актуальность · 0:25–1:10</div>
+    <h2>Проблема видна в самом датасете</h2>
+  </div>
+  <div class="body">
+    <div class="cols c2w" style="align-items:stretch">
+      <div style="display:flex;flex-direction:column;gap:18px">
+        <div class="cols c3" style="gap:0">
+          <div class="stat"><div class="k">Правок при разборе</div><div class="v fig num">26</div><div class="n">единицы, пустые строки, расхождения итогов</div></div>
+          <div class="stat"><div class="k">Противоречий</div><div class="v fig num">17</div><div class="n">показатели не сходятся между формами</div></div>
+          <div class="stat"><div class="k">Центров с пометками</div><div class="v fig num">13<span class="u">из 20</span></div><div class="n">у четырёх вклад в сводный резерв не засчитан</div></div>
+        </div>
+        <div class="panel" style="flex:1">
+          <h3>Три примера из журнала</h3>
+          <ul class="list" style="margin-top:14px;gap:11px">
+            <li><span class="mk">01</span><span>Строка подписана «тыс. рублей», но перевод даёт величину <b>в 475 раз выше медианы сети</b> — подпись признана ошибочной, значение оставлено в рублях.</span></li>
+            <li><span class="mk">02</span><span>Разработано <b>69 форматов при 21 обученном</b>: меньше одного участника на мероприятие — вероятна ошибка в строках 3.1–3.4 Формы 2.</span></li>
+            <li><span class="mk">03</span><span>Резидентов <b>131 при 58 обученных</b> — показатели ведутся по разным контурам, сравнение по ним недостоверно.</span></li>
+          </ul>
+        </div>
+      </div>
+      <div class="frame"><img class="shot crop" src="shots/quality.webp" alt="Раздел «Качество данных»"></div>
+    </div>
+  </div>
+  <div class="foot"><span>раздел «Качество данных»</span><span>критерий 2 · актуальность</span></div>
+</section>
+
+<!-- 4 ─ решение одним экраном ─────────────────────────────────────────── -->
+<section class="slide" data-budget="20" data-note="Короткий переход. Показать обзор. Одна мысль: двадцать книг Excel сведены в один экран, и каждое число кликабельно до исходной строки отчёта.">
+  <div class="head">
+    <div class="eyebrow">Решение</div>
+    <h2>Двадцать книг Excel — один экран</h2>
+  </div>
+  <div class="body">
+    <div class="cols c2w" style="align-items:center">
+      <div class="frame"><img class="shot" src="shots/overview.webp" alt="Обзор сети"></div>
+      <div>
+        <ul class="list">
+          <li><span class="mk">→</span><span><b>4 193 участника</b> за девять отчётных месяцев, 307 мероприятий, 2 074 готовые работы, 25,0 млн ₽ платных услуг.</span></li>
+          <li><span class="mk">→</span><span><b>7 центров</b> при текущем темпе не выходят на годовую цель — это видно в сентябре, а не в декабре.</span></li>
+          <li><span class="mk">→</span><span>Любое число раскрывается до карточки центра, исходного файла и строки формы.</span></li>
+        </ul>
+        <div class="rule"></div>
+        <p class="small">Семь разделов: обзор, динамика, вовлечённость, кластеры, организации, рекомендации, качество данных.</p>
+      </div>
+    </div>
+  </div>
+  <div class="foot"><span>раздел «Обзор»</span><span>критерий 1 · проработка</span></div>
+</section>
+
+<!-- 5 ─ почему кластеры ───────────────────────────────────────────────── -->
+<section class="slide" data-budget="25" data-note="Блок B1, первая половина. Главная мысль: кластеризуем не посетителей — их персональных данных нет и быть не должно, — а аудиторные модели центров. Сравнивать можно только с равными.">
+  <div class="head">
+    <div class="eyebrow">Кластеризация · 1:10–2:10</div>
+    <h2>Сравнивать можно только с равными</h2>
+  </div>
+  <div class="body">
+    <div class="cols c2">
+      <div>
+        <p class="lede">Персональных данных посетителей в отчётности нет и быть не должно.
+        Зато у каждого центра есть <b>профиль аудитории</b> — и его можно кластеризовать.</p>
+        <div class="rule"></div>
+        <div class="cols c2" style="gap:16px">
+          <div><div class="eyebrow">Состав</div><p class="small" style="margin-top:6px">Доли четырёх каналов обучения</p></div>
+          <div><div class="eyebrow">Масштаб</div><p class="small" style="margin-top:6px">Размер аудитории и линейки форматов</p></div>
+          <div><div class="eyebrow">Глубина</div><p class="small" style="margin-top:6px">Наполняемость и доля резидентов</p></div>
+          <div><div class="eyebrow">Отдача</div><p class="small" style="margin-top:6px">Продукты, выручка, публичность</p></div>
+        </div>
+      </div>
+      <div class="panel">
+        <h3>Одна техническая деталь</h3>
+        <p class="small" style="margin-top:12px">Доли каналов — <b>композиционные данные</b>: они лежат на симплексе, сумма всегда равна единице. Признаки линейно зависимы, и обычная стандартизация для них некорректна — евклидово расстояние искажает близость.</p>
+        <p class="small" style="margin-top:12px">Применено <b>центрированное логарифмическое преобразование</b> с мультипликативной заменой нулей — стандартная практика для составов.</p>
+        <div class="rule"></div>
+        <div class="kv"><span>Признаков</span><b class="num">11</b></div>
+        <div class="kv"><span>Наблюдений</span><b class="num">20</b></div>
+        <div class="kv"><span>Компонент после сжатия</span><b class="num">5 · 90 % разброса</b></div>
+      </div>
+    </div>
+  </div>
+  <div class="foot"><span>признаковое пространство</span><span>критерий 1 · проработка</span></div>
+</section>
+
+<!-- 6 ─ пять моделей ──────────────────────────────────────────────────── -->
+<section class="slide" data-budget="35" data-note="Блок B1, вторая половина. Назвать модели вслух, показать карту. Подчеркнуть: имена не придуманы вручную — они собираются из признаков, наиболее отличающих группу.">
+  <div class="head">
+    <div class="eyebrow">Пять аудиторных моделей</div>
+    <h2>Что сеть делает на самом деле</h2>
+  </div>
+  <div class="body">
+    <div class="cols c2w" style="align-items:stretch">
+      <div class="frame"><img class="shot crop" src="shots/clusters.webp" alt="Карта кластеров"></div>
+      <div style="display:flex;flex-direction:column;gap:9px">
+        <div class="panel" style="padding:12px 14px"><div class="chips" style="align-items:center"><span class="chip"><i class="dot" style="background:var(--c-0)"></i>Массовые просветители · 8</span></div><p class="small" style="margin-top:7px">Массовый охват, широкая линейка форматов, тихая работа</p></div>
+        <div class="panel" style="padding:12px 14px"><div class="chips"><span class="chip"><i class="dot" style="background:var(--c-1)"></i>Медийные площадки · 5</span></div><p class="small" style="margin-top:7px">Заметность в медиа при камерном формате</p></div>
+        <div class="panel" style="padding:12px 14px"><div class="chips"><span class="chip"><i class="dot" style="background:var(--c-2)"></i>Продуктовые мастерские · 3</span></div><p class="small" style="margin-top:7px">Сильное ядро резидентов, высокая отдача в продуктах</p></div>
+        <div class="panel" style="padding:12px 14px"><div class="chips"><span class="chip"><i class="dot" style="background:var(--c-3)"></i>Открытые бесплатные площадки · 2</span></div><p class="small" style="margin-top:7px">Бесплатная модель, крупные потоки, узкая линейка</p></div>
+        <div class="panel" style="padding:12px 14px"><div class="chips"><span class="chip"><i class="dot" style="background:var(--c-4)"></i>Профессиональные академии · 2</span></div><p class="small" style="margin-top:7px">Ставка на повышение квалификации и мастер-классы</p></div>
+      </div>
+    </div>
+  </div>
+  <div class="foot"><span>раздел «Кластеры»</span><span>критерий 1 · проработка</span></div>
+</section>
+
+<!-- 7 ─ доказательство ────────────────────────────────────────────────── -->
+<section class="slide" data-budget="55" data-note="Блок B2. Самый сильный слайд по критерию 1. Логика: на двадцати наблюдениях кластеры можно получить всегда — поэтому мы проверили, что они не случайны. Назвать p = 0,0005 и ARI 0,982. Если горит время — оставить только p-value.">
+  <div class="head">
+    <div class="eyebrow">Доказательство · 2:10–3:10</div>
+    <h2>На двадцати наблюдениях кластеры получаются всегда. Мы проверили, что эти — настоящие.</h2>
+  </div>
+  <div class="body">
+    <div class="cols c3">
+      <div class="panel">
+        <div class="eyebrow">Перестановочный тест</div>
+        <h3 style="margin-top:8px">Структура не случайна</h3>
+        <p class="small" style="margin-top:10px">Признаки перемешиваются внутри столбцов, кластеризация повторяется — так получается, какой силуэт даёт чистый шум.</p>
+        <div class="rule"></div>
+        <div class="kv"><span>Наблюдаемый силуэт</span><b>0,326</b></div>
+        <div class="kv"><span>p-значение</span><b>0,0005</b></div>
+        <div class="kv"><span>Размер эффекта</span><b>9,4 σ</b></div>
+      </div>
+      <div class="panel">
+        <div class="eyebrow">Исключение по одному</div>
+        <h3 style="margin-top:8px">Разбиение не держится на одном центре</h3>
+        <p class="small" style="margin-top:10px">Каждый центр по очереди убирается, модель пересобирается, результат сравнивается по индексу Рэнда.</p>
+        <div class="rule"></div>
+        <div class="kv"><span>Средний ARI</span><b>0,982</b></div>
+        <div class="kv"><span>Худший прогон</span><b>0,849</b></div>
+        <div class="kv"><span>Сменили кластер</span><b>0 центров</b></div>
+      </div>
+      <div class="panel">
+        <div class="eyebrow">Согласие алгоритмов</div>
+        <h3 style="margin-top:8px">Три метода дают одно и то же</h3>
+        <p class="small" style="margin-top:10px">Разные семейства сходятся на близком разбиении — значит, дело в данных, а не в выбранном методе.</p>
+        <div class="rule"></div>
+        <div class="kv"><span>k-средние ~ Уорд</span><b>1,000</b></div>
+        <div class="kv"><span>GMM ~ k-средние</span><b>0,757</b></div>
+        <div class="kv"><span>Устойчивость мер</span><b>96 %</b></div>
+      </div>
+    </div>
+    <div class="rule"></div>
+    <p class="small">Число кластеров тоже не назначено рукой: перебор k от 2 до 5 по четырём метрикам сразу — силуэт, стабильность на бутстрапе, баланс размеров и индекс Дэвиса—Болдина. Сводный балл у <b>k = 5</b> — 0,976 против 0,592 у ближайшего.</p>
+  </div>
+  <div class="foot"><span>раздел «Кластеры» → проверки</span><span>критерий 1 · проработка</span></div>
+</section>
+
+<!-- 8 ─ логика рекомендаций ───────────────────────────────────────────── -->
+<section class="slide" data-budget="30" data-note="Блок C, первая половина. Показать, что рекомендация — не «совет вообще», а разрыв с медианой сопоставимых центров, переведённый в натуральную величину.">
+  <div class="head">
+    <div class="eyebrow">Рекомендации · 3:10–4:10</div>
+    <h2>Не совет, а посчитанный разрыв</h2>
+  </div>
+  <div class="body">
+    <div class="cols c2w">
+      <div>
+        <ul class="list">
+          <li><span class="mk">01</span><span>Центр сравнивается с <b>медианой своей аудиторной модели</b>. Если в модели меньше пяти центров — со всей сетью; круг сравнения указан в каждой мере.</span></li>
+          <li><span class="mk">02</span><span>Разрыв переводится в натуральную величину: участники, работы, рубли, публикации.</span></li>
+          <li><span class="mk">03</span><span>Приоритет складывается из размера разрыва, доли затронутой аудитории и <b>надёжности исходных данных</b>.</span></li>
+          <li><span class="mk">04</span><span>Мера пересобирается на возмущённых данных — <b>20 прогонов</b>, чтобы отсеять артефакты одной выборки.</span></li>
+        </ul>
+      </div>
+      <div class="panel">
+        <div class="eyebrow">Пример меры</div>
+        <h3 style="margin-top:8px">Поднять наполняемость «Мастер-классы»</h3>
+        <p class="small" style="margin-top:10px">На «Мастер-классы» приходит <b>0,3 чел.</b> на мероприятие при медиане <b>13,8</b> в своей модели — это нижний квартиль. Мероприятия уже проводятся (68 шт.), значит резерв закрывается работой с набором, а не новой программой.</p>
+        <div class="rule"></div>
+        <div class="kv"><span>Приоритет</span><b>100 из 100</b></div>
+        <div class="kv"><span>Оценка эффекта</span><b>+914 чел.</b></div>
+        <div class="kv"><span>Лучший в группе</span><b>ОГИК · 130,2</b></div>
+        <div class="chips" style="margin-top:12px"><span class="chip"><i class="dot" style="background:var(--warn)"></i>данные под вопросом</span></div>
+      </div>
+    </div>
+  </div>
+  <div class="foot"><span>раздел «Рекомендации»</span><span>критерий 3 · востребованность</span></div>
+</section>
+
+<!-- 9 ─ экран рекомендаций ────────────────────────────────────────────── -->
+<section class="slide" data-budget="25" data-note="Блок C, вторая половина. Показать очередь мер на экране. Одна фраза: «пятьдесят адресных действий, у каждого — обоснование, эффект и уровень доверия».">
+  <div class="head">
+    <div class="eyebrow">Пятьдесят адресных действий</div>
+    <h2>Очередь мер с доказательной базой</h2>
+  </div>
+  <div class="body">
+    <div class="cols c2w" style="align-items:stretch">
+      <div class="frame"><img class="shot crop" src="shots/recs.webp" alt="Раздел «Рекомендации»"></div>
+      <div style="display:flex;flex-direction:column;gap:14px;justify-content:center">
+        <div class="stat"><div class="k">Мер в очереди</div><div class="v fig num">50</div><div class="n">по семи типам, средний приоритет 51</div></div>
+        <div class="stat"><div class="k">Устойчивы к возмущению данных</div><div class="v fig num">96<span class="u">%</span></div><div class="n">20 прогонов, средняя выживаемость 98 %</div></div>
+        <div class="stat"><div class="k">Центров охвачено</div><div class="v fig num">20<span class="u">из 20</span></div><div class="n">у каждого — своя очередь действий</div></div>
+      </div>
+    </div>
+  </div>
+  <div class="foot"><span>раздел «Рекомендации»</span><span>критерий 3 · востребованность</span></div>
+</section>
+
+<!-- 10 ─ экономика ────────────────────────────────────────────────────── -->
+<section class="slide" data-budget="55" data-note="Блок D. Ключевой слайд по критерию 4. Обязательно проговорить: резерв считается при НЕИЗМЕННОМ числе мероприятий — это не «дайте денег», а «используйте то, что уже есть». И назвать разницу полного и подтверждённого резерва: мы сами вычли шесть центров с противоречиями.">
+  <div class="head">
+    <div class="eyebrow">Экономика · 4:10–5:10</div>
+    <h2>Резерв закрывается без роста бюджета</h2>
+  </div>
+  <div class="body top gap" style="padding-top:26px">
+    <div class="cols c5" style="gap:0">
+      <div class="stat big"><div class="k">Платные услуги</div><div class="v fig num">+9,7<span class="u">млн ₽</span></div><div class="n">9 центров</div></div>
+      <div class="stat big"><div class="k">Творческие работы</div><div class="v fig num">+1 411</div><div class="n">8 центров</div></div>
+      <div class="stat big"><div class="k">Участники</div><div class="v fig num">+753</div><div class="n">13 центров</div></div>
+      <div class="stat big"><div class="k">Публикации</div><div class="v fig num">+317</div><div class="n">8 центров</div></div>
+      <div class="stat big"><div class="k">Мероприятия</div><div class="v fig num">+81</div><div class="n">6 центров</div></div>
+    </div>
+    <div class="rule"></div>
+    <div class="cols c2">
+      <div>
+        <h3>Откуда берётся</h3>
+        <p class="small" style="margin-top:10px">Это разрыв между центром и медианой <b>сопоставимых</b> центров — при неизменном числе мероприятий и неизменном бюджете. Не «дайте денег», а «используйте то, что уже проводится».</p>
+      </div>
+      <div>
+        <h3>Почему числу можно верить</h3>
+        <p class="small" style="margin-top:10px">Показан <b>подтверждённый</b> резерв. Полный — 9,67 млн ₽ выручки и 1 690 участников; из него <b>вычтены шесть мер по четырём центрам</b>, у которых показатели внутри отчёта противоречат друг другу. Мы сами уменьшили свою цифру, а не защищаем максимальную.</p>
+      </div>
+    </div>
+  </div>
+  <div class="foot"><span>раздел «Рекомендации» → совокупный резерв</span><span>критерий 4 · экономика</span></div>
+</section>
+
+<!-- 11 ─ честность ────────────────────────────────────────────────────── -->
+<section class="slide" data-budget="55" data-note="Блок E. Отличает нас от типового дашборда. Сказать прямо: в задании была обратная связь, в датасете её нет, синтетику мы рисовать не стали. Показать панель «Чего в данных нет».">
+  <div class="head">
+    <div class="eyebrow">Честность данных · 5:10–6:10</div>
+    <h2>Мы не рисуем то, чего нет</h2>
+  </div>
+  <div class="body top" style="padding-top:10px">
+    <div class="cols c2w" style="align-items:stretch">
+      <div style="display:flex;flex-direction:column;gap:16px">
+        <p class="lede">В задании была обратная связь. В датасете её нет — ни одной строки об
+        удовлетворённости, ни одного отзыва. <b>Синтетический NPS генерируется за час, но дашборд,
+        где половина метрик придумана, не годится для решений.</b></p>
+        <div class="panel">
+          <h3>Что сделано вместо</h3>
+          <ul class="list" style="margin-top:12px;gap:10px">
+            <li><span class="mk">→</span><span>Наблюдаемые заменители: <b>конверсия в готовую работу</b>, доля закрепившихся резидентов, внешняя заметность результата.</span></li>
+            <li><span class="mk">→</span><span>Отдельная панель <b>«Чего в данных нет»</b>: перечень недостающих источников и что каждый из них дал бы.</span></li>
+            <li><span class="mk">→</span><span>Показатель без базы 2025 года не получает ни прироста, ни нуля — он помечен как несравнимый.</span></li>
+          </ul>
+        </div>
+      </div>
+      <div class="frame"><img class="shot crop" src="shots/eng.webp" alt="Раздел «Вовлечённость»"></div>
+    </div>
+  </div>
+  <div class="foot"><span>раздел «Вовлечённость»</span><span>критерий 1 · проработка</span></div>
+</section>
+
+<!-- 12 ─ технологии ───────────────────────────────────────────────────── -->
+<section class="slide" data-budget="20" data-note="Быстрый слайд. Не зачитывать таблицу — назвать два факта: конвейер целиком пересчитывается за 6,3 секунды и всё воспроизводится с фиксированным сидом.">
+  <div class="head">
+    <div class="eyebrow">Как это устроено</div>
+    <h2>Конвейер целиком — 6,3 секунды</h2>
+  </div>
+  <div class="body top gap" style="padding-top:24px">
+    <div class="cols c4" style="gap:20px">
+      <div class="panel"><div class="eyebrow">Данные</div><p class="small" style="margin-top:10px">Устойчивый разбор 20 разнородных книг Excel, приведение единиц, журнал каждой правки</p></div>
+      <div class="panel"><div class="eyebrow">Модели</div><p class="small" style="margin-top:10px">CLR-признаки, PCA, k-средние / Уорд / GMM, перестановочный тест, leave-one-out</p></div>
+      <div class="panel"><div class="eyebrow">API</div><p class="small" style="margin-top:10px">FastAPI, 14 эндпоинтов, результат конвейера держится в памяти процесса</p></div>
+      <div class="panel"><div class="eyebrow">Витрина</div><p class="small" style="margin-top:10px">React 19 + TypeScript, графики собственные на SVG, палитра проверена машинно</p></div>
+    </div>
+    <div class="rule"></div>
+    <div class="cols c3">
+      <div class="stat"><div class="k">Сборка конвейера</div><div class="v fig num">6,3<span class="u">с</span></div><div class="n">от Excel до рекомендаций</div></div>
+      <div class="stat"><div class="k">Воспроизводимость</div><div class="v fig num">100<span class="u">%</span></div><div class="n">фиксированный сид во всех случайных процессах</div></div>
+      <div class="stat"><div class="k">Развёрнуто</div><div class="v fig num">Docker</div><div class="n">HTTPS, автопродление сертификата</div></div>
+    </div>
+  </div>
+  <div class="foot"><span>архитектура</span><span>критерий 1 · проработка</span></div>
+</section>
+
+<!-- 13 ─ финал ────────────────────────────────────────────────────────── -->
+<section class="slide" data-budget="30" data-note="Блок F. Закрыть кругом: начали с «решений по отчётности не принимают» — заканчиваем «вот пятьдесят решений». Назвать ссылку и остановиться. Не добавлять новых фактов.">
+  <div class="head">
+    <div class="eyebrow">Финал · 6:10–7:00</div>
+    <h2>Готово к внедрению сегодня</h2>
+  </div>
+  <div class="body">
+    <div class="cols c2w" style="align-items:center">
+      <div>
+        <p class="lede">Мы начали с того, что отчётность собирают, а решений по ней не принимают.
+        <b>Вот пятьдесят решений</b> — с обоснованием, оценкой эффекта и честной пометкой там,
+        где данным нельзя доверять.</p>
+        <div class="rule"></div>
+        <div class="cols c2" style="gap:16px">
+          <div class="stat"><div class="k">Новый отчётный период</div><div class="v fig" style="font-size:26px">POST /reload</div><div class="n">положить файлы в каталог — модели пересоберутся</div></div>
+          <div class="stat"><div class="k">Новый показатель</div><div class="v fig" style="font-size:26px">одна запись</div><div class="n">в схеме показателей — и он в конвейере</div></div>
+        </div>
+      </div>
+      <div class="frame"><img class="shot crop" src="shots/orgs.webp" alt="Каталог организаций"></div>
+    </div>
+    <div class="rule"></div>
+    <div style="display:flex;justify-content:space-between;align-items:baseline">
+      <span class="eyebrow">Демо</span>
+      <span style="font-family:var(--mono);font-size:22px;color:var(--ink)">vitaliysoftware.duckdns.org</span>
+    </div>
+  </div>
+  <div class="foot"><span>Vitaliy Software Solutions</span><span>критерий 5 · презентация</span></div>
+</section>
+
+</div></div>
+
+<div id="notes"><h4>Заметки докладчику</h4><div id="notesText"></div></div>
+<div id="chrome">
+  <span id="pos">1 / 13</span>
+  <div id="track"><i style="width:0"></i></div>
+  <span id="budget">план 0:00</span>
+  <span id="clock">0:00</span>
+</div>
+
+<script>
+const deck = document.getElementById('deck')
+const slides = [...document.querySelectorAll('.slide')]
+const track = document.querySelector('#track > i')
+const pos = document.getElementById('pos')
+const clockEl = document.getElementById('clock')
+const budgetEl = document.getElementById('budget')
+const notes = document.getElementById('notes')
+const notesText = document.getElementById('notesText')
+
+// Бюджет каждого слайда задан в разметке; из них складывается плановая отсечка.
+const budgets = slides.map((slide) => Number(slide.dataset.budget || 0))
+const cumulative = budgets.reduce((acc, value) => (acc.push((acc.at(-1) ?? 0) + value), acc), [])
+
+let index = 0
+let started = 0
+let running = false
+
+// Слайд имеет фиксированный размер 1280×720 и вписывается в окно масштабом.
+function fit() {
+  const scale = Math.min(window.innerWidth / 1280, (window.innerHeight - 34) / 720)
+  deck.style.transform = `scale(${scale})`
+}
+
+function show(next) {
+  index = Math.max(0, Math.min(slides.length - 1, next))
+  slides.forEach((slide, i) => slide.classList.toggle('on', i === index))
+  pos.textContent = `${index + 1} / ${slides.length}`
+  track.style.width = `${((index + 1) / slides.length) * 100}%`
+  const mark = cumulative[index]
+  budgetEl.textContent = `план ${Math.floor(mark / 60)}:${String(mark % 60).padStart(2, '0')}`
+  notesText.textContent = slides[index].dataset.note || '—'
+  if (!running && index > 0) { running = true; started = Date.now() }
+}
+
+function tick() {
+  if (!running) return
+  const elapsed = Math.floor((Date.now() - started) / 1000)
+  clockEl.textContent = `${Math.floor(elapsed / 60)}:${String(elapsed % 60).padStart(2, '0')}`
+  // Красным — когда идём с отставанием от плановой отсечки текущего слайда.
+  clockEl.classList.toggle('over', elapsed > cumulative[index] + 8)
+}
+
+addEventListener('keydown', (event) => {
+  const key = event.key
+  if (key === 'ArrowRight' || key === ' ' || key === 'PageDown' || key === 'Enter') { show(index + 1); event.preventDefault() }
+  else if (key === 'ArrowLeft' || key === 'PageUp') { show(index - 1); event.preventDefault() }
+  else if (key === 'Home') show(0)
+  else if (key === 'End') show(slides.length - 1)
+  else if (key === 's' || key === 'S' || key === 'ы' || key === 'Ы') notes.classList.toggle('on')
+  else if (key === 't' || key === 'T' || key === 'е' || key === 'Е') { running = !running; if (running) started = Date.now() - 0 }
+  else if (key === 'f' || key === 'F' || key === 'а' || key === 'А') {
+    document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen()
+  }
+})
+
+addEventListener('click', (event) => {
+  if (event.target.closest('#notes')) return
+  show(index + (event.clientX < innerWidth * 0.28 ? -1 : 1))
+})
+
+addEventListener('resize', fit)
+setInterval(tick, 250)
+fit()
+show(0)
+</script>
+</body>
+</html>

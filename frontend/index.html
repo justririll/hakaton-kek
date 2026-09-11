@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="Аналитика сети центров прототипирования вузов культуры: динамика, кластеризация аудитории, рекомендации по программированию." />
+    <link rel="icon" href="/mark.svg" type="image/svg+xml" />
+    <title>ВитДашборд — аналитика сети центров культуры</title>
+    <script>
+      // Тема применяется до первой отрисовки, иначе на загрузке моргает светлый фон.
+      (function () {
+        try {
+          var saved = localStorage.getItem('vss-theme')
+          if (saved === 'light' || saved === 'dark') document.documentElement.dataset.theme = saved
+        } catch (e) {}
+      })()
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

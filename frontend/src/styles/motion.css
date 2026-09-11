@@ -1,0 +1,52 @@
+/* Движение служит ориентировке: появление панели, выезд карточки, смена раздела.
+   Ничего декоративного — и всё снимается при prefers-reduced-motion. */
+
+@keyframes vss-fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes vss-rise {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes vss-slide {
+  from { opacity: 0; transform: translateX(24px); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes vss-draw {
+  from { stroke-dashoffset: var(--len, 1000); }
+  to { stroke-dashoffset: 0; }
+}
+
+@keyframes vss-sweep {
+  from { transform: scaleX(0); }
+  to { transform: scaleX(1); }
+}
+
+.rise {
+  animation: vss-rise 320ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* Панели проявляются волной — порядок чтения задаётся движением. */
+.stagger > * { animation: vss-rise 340ms cubic-bezier(0.22, 1, 0.36, 1) both; }
+.stagger > *:nth-child(1) { animation-delay: 0ms; }
+.stagger > *:nth-child(2) { animation-delay: 45ms; }
+.stagger > *:nth-child(3) { animation-delay: 90ms; }
+.stagger > *:nth-child(4) { animation-delay: 135ms; }
+.stagger > *:nth-child(5) { animation-delay: 180ms; }
+.stagger > *:nth-child(6) { animation-delay: 215ms; }
+.stagger > *:nth-child(7) { animation-delay: 245ms; }
+.stagger > *:nth-child(8) { animation-delay: 270ms; }
+.stagger > *:nth-child(n + 9) { animation-delay: 290ms; }
+
+.bar-grow {
+  transform-origin: left center;
+  animation: vss-sweep 520ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rise, .stagger > *, .bar-grow { animation: none !important; }
+}

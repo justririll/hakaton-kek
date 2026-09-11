@@ -14,7 +14,7 @@ fi
 
 (cd backend && uv sync --quiet && uv run uvicorn app.main:app --port 8010) &
 backend=$!
-(cd frontend-ml && npm install --silent && npm run dev) &
+(cd frontend && npm install --silent && npm run dev) &
 frontend=$!
 
 trap 'kill $backend $frontend 2>/dev/null || true' INT TERM
