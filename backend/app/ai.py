@@ -23,6 +23,17 @@ log = logging.getLogger("vss.ai")
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
 GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-flash-lite-latest")
 
+# Google отвечает «User location is not supported» на IPv4 части хостингов.
+# GEMINI_PROXY направляет только вызовы Gemini через туннель; пусто — идём прямо.
+GEMINI_PROXY = os.getenv("GEMINI_PROXY", "")
+
+if GEMINI_PROXY:
+    _opener = urllib.request.build_opener(
+        urllib.request.ProxyHandler({"http": GEMINI_PROXY, "https": GEMINI_PROXY})
+    )
+else:
+    _opener = urllib.request.build_opener()
+
 # Кэш ответов (в памяти + файл на диске для переживания перезапусков)
 _CACHE_FILE = Path(os.getenv("AI_CACHE_FILE", "/tmp/vss_ai_cache.json"))
 _ai_cache: dict[str, dict[str, Any]] = {}
@@ -83,7 +94,7 @@ def call_gemini(prompt: str, max_output_tokens: int = 4096, temperature: float =
         )
 
         try:
-            with urllib.request.urlopen(req, timeout=18) as resp:
+            with _opener.open(req, timeout=30) as resp:
                 data = json.loads(resp.read().decode("utf-8"))
                 elapsed = round(time.perf_counter() - started, 2)
 
@@ -396,15 +407,19 @@ def get_network_ai_summary(state: Any, force_refresh: bool = False) -> dict[str,
         _save_cache()
         return output
 
-    # Если Gemini временно недоступен или выдал обрывок — выдаем полный аналитический синтез
+    # Gemini недоступен или вернул обрывок — отдаём детерминированный синтез на
+    # тех же числах. Он честно помечен: подменять имя модели и рисовать
+    # правдоподобные счётчики токенов значило бы врать о происхождении текста.
+    log.warning("Gemini недоступен, отдан детерминированный бриф: %s", res.get("error"))
     synth_text = synthesize_network_report(state)
     output = {
-        "status": "ok",
-        "model": "Gemini AI Engine",
+        "status": "fallback",
+        "model": "детерминированный синтез (без ИИ)",
         "generated_at": time.strftime("%Y-%m-%d %H:%M:%S"),
         "content": synth_text,
-        "elapsed_seconds": 0.05,
-        "tokens": {"prompt": 650, "candidates": 380, "total": 1030},
+        "elapsed_seconds": res.get("elapsed_seconds", 0.0),
+        "tokens": None,
+        "error": res.get("error") or "модель не вернула пригодный текст",
         "from_cache": False,
     }
     _ai_cache[cache_key] = output
@@ -501,17 +516,19 @@ def get_org_ai_summary(org_id: str, state: Any, force_refresh: bool = False) -> 
         _save_cache()
         return output
 
-    # Если внешний API вернул обрывок или сбой — мгновенно отдаем точный расчетный синтез
+    # То же правило для карточки центра: источник текста называется своим именем.
+    log.warning("Gemini недоступен по %s, отдан детерминированный разбор: %s", org_id, res.get("error"))
     synth_text = synthesize_org_report(org_id, state)
     output = {
-        "status": "ok",
+        "status": "fallback",
         "org_id": org_id,
         "org_name": short_name,
-        "model": "Gemini AI Engine",
+        "model": "детерминированный синтез (без ИИ)",
         "generated_at": time.strftime("%Y-%m-%d %H:%M:%S"),
         "content": synth_text,
-        "elapsed_seconds": 0.05,
-        "tokens": {"prompt": 450, "candidates": 320, "total": 770},
+        "elapsed_seconds": res.get("elapsed_seconds", 0.0),
+        "tokens": None,
+        "error": res.get("error") or "модель не вернула пригодный текст",
         "from_cache": False,
     }
     _ai_cache[cache_key] = output

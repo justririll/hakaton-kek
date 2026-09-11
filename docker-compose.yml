@@ -11,6 +11,9 @@ services:
       # Без ключа AI-слой выключается, остальная витрина работает как обычно.
       - GEMINI_API_KEY=${GEMINI_API_KEY:-}
       - GEMINI_MODEL=${GEMINI_MODEL:-gemini-flash-lite-latest}
+      # Google отвечает «User location is not supported» на IPv4 этого хостинга,
+      # поэтому вызовы Gemini уходят через туннель. Пусто — идём напрямую.
+      - GEMINI_PROXY=${GEMINI_PROXY:-}
     # Порт наружу не публикуется: API доступен только фронтенду по внутренней
     # сети compose, снаружи — через nginx по HTTPS.
     expose:

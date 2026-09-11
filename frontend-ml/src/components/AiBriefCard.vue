@@ -15,6 +15,10 @@ const props = defineProps({
 const loading = ref(false)
 const error = ref(null)
 const summary = ref(null)
+
+// Бэкенд помечает ответ status="fallback", когда Gemini не ответил и текст
+// собран локально. Выдавать такой бриф за работу модели нельзя.
+const isFallback = computed(() => summary.value?.status === "fallback")
 const copied = ref(false)
 const expanded = ref(!props.compact)
 
@@ -100,10 +104,21 @@ onMounted(() => {
         <div>
           <div class="ai-title-row">
             <h3>Аналитическое резюме для руководства</h3>
-            <span class="badge badge-purple ai-model-badge">AI-аналитика</span>
+            <span
+              class="badge ai-model-badge"
+              :class="isFallback ? 'badge-neutral' : 'badge-purple'"
+              :title="isFallback ? (summary?.error || 'Модель недоступна') : summary?.model"
+            >
+              {{ isFallback ? "Расчётный бриф" : "AI-аналитика" }}
+            </span>
           </div>
           <p class="muted ai-sub">
-            Сводный бриф по показателям и программированию 20 центров культуры
+            <template v-if="isFallback">
+              Модель недоступна — текст собран детерминированным алгоритмом на тех же числах
+            </template>
+            <template v-else>
+              Сводный бриф по показателям и программированию 20 центров культуры
+            </template>
           </p>
         </div>
       </div>

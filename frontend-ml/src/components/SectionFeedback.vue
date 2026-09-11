@@ -53,11 +53,11 @@ const funnelOption = computed(() => {
   const p = palette()
   const o = props.overview || {}
   const stages = [
-    { value: o.audience_total || 0, name: `Обучено участников: ${compact(o.audience_total)} чел.`, color: "#2563eb" },
-    { value: o.residents_total || 0, name: `Резиденты: ${compact(o.residents_total)} чел.`, color: "#3b82f6" },
-    { value: o.products_total || 0, name: `Готовые арт-продукты: ${compact(o.products_total)} шт.`, color: "#10b981" },
-    { value: o.publications_total || 0, name: `Публикации о результатах: ${compact(o.publications_total)} шт.`, color: "#f59e0b" },
-    { value: o.federal_events_total || 0, name: `Федеральные площадки: ${compact(o.federal_events_total)} шт.`, color: "#8b5cf6" },
+    { value: o.audience_total || 0, name: `Обучено — ${compact(o.audience_total)} чел.`, color: "#2563eb" },
+    { value: o.residents_total || 0, name: `Резиденты — ${compact(o.residents_total)} чел.`, color: "#3b82f6" },
+    { value: o.products_total || 0, name: `Арт-продукты — ${compact(o.products_total)} шт.`, color: "#10b981" },
+    { value: o.publications_total || 0, name: `Публикации — ${compact(o.publications_total)} шт.`, color: "#f59e0b" },
+    { value: o.federal_events_total || 0, name: `Федеральный охват — ${compact(o.federal_events_total)}`, color: "#8b5cf6" },
   ]
 
   return {
@@ -67,17 +67,26 @@ const funnelOption = computed(() => {
       {
         name: "Ступени вовлечённости",
         type: "funnel",
-        left: "6%",
+        left: "2%",
         top: 16,
         bottom: 16,
-        width: "88%",
+        // Фигура занимает половину ширины, вторая половина отдана подписям.
+        width: "46%",
         min: 0,
         max: stages[0].value,
-        minSize: "22%",
+        minSize: "30%",
         maxSize: "100%",
         sort: "descending",
         gap: 4,
-        label: { show: true, position: "inside", formatter: "{b}", color: "#ffffff", fontWeight: 600, fontSize: 12 },
+        label: {
+          show: true,
+          position: "right",
+          formatter: "{b}",
+          color: p.textSecondary,
+          fontWeight: 600,
+          fontSize: 12,
+        },
+        labelLine: { length: 14, lineStyle: { color: p.border } },
         itemStyle: { borderColor: p.surface, borderWidth: 2, borderRadius: 4 },
         data: stages.map((s) => ({ value: s.value, name: s.name, itemStyle: { color: s.color } })),
       },
@@ -128,12 +137,15 @@ const conversionOption = computed(() => {
         markLine: {
           silent: true,
           symbol: "none",
-          // «end» у вертикальной линии ложится на подписи оси — уводим внутрь сверху.
+          // У вертикальной markLine подпись по умолчанию встаёт вдоль линии —
+          // rotate: 0 возвращает её в горизонталь, position уводит от оси.
           label: {
             formatter: `медиана ${median}`,
             color: p.muted,
             fontSize: 11,
-            position: "insideEndTop",
+            position: "insideStartTop",
+            rotate: 0,
+            padding: [0, 0, 4, 6],
           },
           lineStyle: { color: p.muted, width: 1, type: "dashed" },
           data: [{ xAxis: median }],
