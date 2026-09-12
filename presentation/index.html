@@ -91,7 +91,10 @@ ul.list li .mk{flex:none;width:20px;font-family:var(--mono);font-size:12px;color
 .chips{display:flex;flex-wrap:wrap;gap:8px}
 .shot{width:100%;border:1px solid var(--rule-2);border-radius:4px;display:block;
       box-shadow:0 18px 44px -26px rgba(27,26,23,.5)}
-.shot.crop{height:100%;object-fit:cover;object-position:top left}
+.shot.fit{width:auto;height:auto;max-width:100%;max-height:472px;margin:auto;object-fit:contain}
+/* Слайд фиксированного размера 1280×720: под шапкой и подвалом остаётся около
+   480 px, поэтому потолок задаётся в пикселях — процент от авто-высоты грида
+   браузер разрешить не может, и снимок вылезал на заголовок. */
 .frame{overflow:hidden;border-radius:4px;flex:1;min-height:0;display:flex}
 .bar{height:6px;background:var(--panel-3);border-radius:99px;overflow:hidden;margin-top:8px}
 .bar > i{display:block;height:100%;border-radius:99px;background:var(--ink-2)}
@@ -156,7 +159,7 @@ ul.list li .mk{flex:none;width:20px;font-family:var(--mono);font-size:12px;color
       <div class="stat"><div class="k">Центров в сети</div><div class="v fig num">20</div></div>
       <div class="stat"><div class="k">Аудиторных моделей</div><div class="v fig num">5</div></div>
       <div class="stat"><div class="k">Адресных мер</div><div class="v fig num">50</div></div>
-      <div class="stat"><div class="k">Резерв выручки</div><div class="v fig num">9,7<span class="u">млн ₽</span></div></div>
+      <div class="stat"><div class="k">Подтверждённый резерв</div><div class="v fig num">9,7<span class="u">млн ₽</span></div></div>
     </div>
   </div>
   <div class="foot"><span>vitaliysoftware.duckdns.org</span><span>защита · 7 минут</span></div>
@@ -215,21 +218,21 @@ ul.list li .mk{flex:none;width:20px;font-family:var(--mono);font-size:12px;color
           </ul>
         </div>
       </div>
-      <div class="frame"><img class="shot crop" src="shots/quality.webp" alt="Раздел «Качество данных»"></div>
+      <div class="frame"><img class="shot fit" src="shots/quality.webp" alt="Раздел «Качество данных»"></div>
     </div>
   </div>
   <div class="foot"><span>раздел «Качество данных»</span><span>критерий 2 · актуальность</span></div>
 </section>
 
 <!-- 4 ─ решение одним экраном ─────────────────────────────────────────── -->
-<section class="slide" data-budget="20" data-note="Короткий переход. Показать обзор. Одна мысль: двадцать книг Excel сведены в один экран, и каждое число кликабельно до исходной строки отчёта.">
+<section class="slide" data-budget="15" data-note="Короткий переход. Показать обзор. Одна мысль: двадцать книг Excel сведены в один экран, и каждое число кликабельно до исходной строки отчёта.">
   <div class="head">
-    <div class="eyebrow">Решение</div>
+    <div class="eyebrow">Решение · 1:10–1:25</div>
     <h2>Двадцать книг Excel — один экран</h2>
   </div>
   <div class="body">
     <div class="cols c2w" style="align-items:center">
-      <div class="frame"><img class="shot" src="shots/overview.webp" alt="Обзор сети"></div>
+      <div class="frame"><img class="shot fit" src="shots/overview.webp" alt="Обзор сети"></div>
       <div>
         <ul class="list">
           <li><span class="mk">→</span><span><b>4 193 участника</b> за девять отчётных месяцев, 307 мероприятий, 2 074 готовые работы, 25,0 млн ₽ платных услуг.</span></li>
@@ -247,7 +250,7 @@ ul.list li .mk{flex:none;width:20px;font-family:var(--mono);font-size:12px;color
 <!-- 5 ─ почему кластеры ───────────────────────────────────────────────── -->
 <section class="slide" data-budget="25" data-note="Блок B1, первая половина. Главная мысль: кластеризуем не посетителей — их персональных данных нет и быть не должно, — а аудиторные модели центров. Сравнивать можно только с равными.">
   <div class="head">
-    <div class="eyebrow">Кластеризация · 1:10–2:10</div>
+    <div class="eyebrow">Кластеризация · 1:25–1:50</div>
     <h2>Сравнивать можно только с равными</h2>
   </div>
   <div class="body">
@@ -278,14 +281,14 @@ ul.list li .mk{flex:none;width:20px;font-family:var(--mono);font-size:12px;color
 </section>
 
 <!-- 6 ─ пять моделей ──────────────────────────────────────────────────── -->
-<section class="slide" data-budget="35" data-note="Блок B1, вторая половина. Назвать модели вслух, показать карту. Подчеркнуть: имена не придуманы вручную — они собираются из признаков, наиболее отличающих группу.">
+<section class="slide" data-budget="20" data-note="Блок B1, вторая половина. Назвать модели вслух, показать карту. Подчеркнуть: имена не придуманы вручную — они собираются из признаков, наиболее отличающих группу.">
   <div class="head">
-    <div class="eyebrow">Пять аудиторных моделей</div>
+    <div class="eyebrow">Аудиторные модели · 1:50–2:10</div>
     <h2>Что сеть делает на самом деле</h2>
   </div>
   <div class="body">
     <div class="cols c2w" style="align-items:stretch">
-      <div class="frame"><img class="shot crop" src="shots/clusters.webp" alt="Карта кластеров"></div>
+      <div class="frame"><img class="shot fit" src="shots/clusters.webp" alt="Карта кластеров"></div>
       <div style="display:flex;flex-direction:column;gap:9px">
         <div class="panel" style="padding:12px 14px"><div class="chips" style="align-items:center"><span class="chip"><i class="dot" style="background:var(--c-0)"></i>Массовые просветители · 8</span></div><p class="small" style="margin-top:7px">Массовый охват, широкая линейка форматов, тихая работа</p></div>
         <div class="panel" style="padding:12px 14px"><div class="chips"><span class="chip"><i class="dot" style="background:var(--c-1)"></i>Медийные площадки · 5</span></div><p class="small" style="margin-top:7px">Заметность в медиа при камерном формате</p></div>
@@ -299,7 +302,7 @@ ul.list li .mk{flex:none;width:20px;font-family:var(--mono);font-size:12px;color
 </section>
 
 <!-- 7 ─ доказательство ────────────────────────────────────────────────── -->
-<section class="slide" data-budget="55" data-note="Блок B2. Самый сильный слайд по критерию 1. Логика: на двадцати наблюдениях кластеры можно получить всегда — поэтому мы проверили, что они не случайны. Назвать p = 0,0005 и ARI 0,982. Если горит время — оставить только p-value.">
+<section class="slide" data-budget="60" data-note="Блок B2. Самый сильный слайд по критерию 1. Логика: на двадцати наблюдениях кластеры можно получить всегда — поэтому мы проверили, что они не случайны. Назвать p = 0,0005 и ARI 0,982. Если горит время — оставить только p-value.">
   <div class="head">
     <div class="eyebrow">Доказательство · 2:10–3:10</div>
     <h2>На двадцати наблюдениях кластеры получаются всегда. Мы проверили, что эти — настоящие.</h2>
@@ -343,7 +346,7 @@ ul.list li .mk{flex:none;width:20px;font-family:var(--mono);font-size:12px;color
 <!-- 8 ─ логика рекомендаций ───────────────────────────────────────────── -->
 <section class="slide" data-budget="30" data-note="Блок C, первая половина. Показать, что рекомендация — не «совет вообще», а разрыв с медианой сопоставимых центров, переведённый в натуральную величину.">
   <div class="head">
-    <div class="eyebrow">Рекомендации · 3:10–4:10</div>
+    <div class="eyebrow">Рекомендации · 3:10–3:40</div>
     <h2>Не совет, а посчитанный разрыв</h2>
   </div>
   <div class="body">
@@ -372,14 +375,14 @@ ul.list li .mk{flex:none;width:20px;font-family:var(--mono);font-size:12px;color
 </section>
 
 <!-- 9 ─ экран рекомендаций ────────────────────────────────────────────── -->
-<section class="slide" data-budget="25" data-note="Блок C, вторая половина. Показать очередь мер на экране. Одна фраза: «пятьдесят адресных действий, у каждого — обоснование, эффект и уровень доверия».">
+<section class="slide" data-budget="30" data-note="Блок C, вторая половина. Показать очередь мер на экране. Одна фраза: «пятьдесят адресных действий, у каждого — обоснование, эффект и уровень доверия».">
   <div class="head">
-    <div class="eyebrow">Пятьдесят адресных действий</div>
+    <div class="eyebrow">Очередь мер · 3:40–4:10</div>
     <h2>Очередь мер с доказательной базой</h2>
   </div>
   <div class="body">
     <div class="cols c2w" style="align-items:stretch">
-      <div class="frame"><img class="shot crop" src="shots/recs.webp" alt="Раздел «Рекомендации»"></div>
+      <div class="frame"><img class="shot fit" src="shots/recs.webp" alt="Раздел «Рекомендации»"></div>
       <div style="display:flex;flex-direction:column;gap:14px;justify-content:center">
         <div class="stat"><div class="k">Мер в очереди</div><div class="v fig num">50</div><div class="n">по семи типам, средний приоритет 51</div></div>
         <div class="stat"><div class="k">Устойчивы к возмущению данных</div><div class="v fig num">96<span class="u">%</span></div><div class="n">20 прогонов, средняя выживаемость 98 %</div></div>
@@ -391,9 +394,9 @@ ul.list li .mk{flex:none;width:20px;font-family:var(--mono);font-size:12px;color
 </section>
 
 <!-- 10 ─ экономика ────────────────────────────────────────────────────── -->
-<section class="slide" data-budget="55" data-note="Блок D. Ключевой слайд по критерию 4. Обязательно проговорить: резерв считается при НЕИЗМЕННОМ числе мероприятий — это не «дайте денег», а «используйте то, что уже есть». И назвать разницу полного и подтверждённого резерва: мы сами вычли шесть центров с противоречиями.">
+<section class="slide" data-budget="30" data-note="Блок D1. Ключевой слайд по критерию 4. Обязательно проговорить: резерв считается при НЕИЗМЕННОМ числе мероприятий — это не «дайте денег», а «используйте то, что уже есть». И назвать разницу полного и подтверждённого резерва: мы сами вычли шесть мер по четырём центрам.">
   <div class="head">
-    <div class="eyebrow">Экономика · 4:10–5:10</div>
+    <div class="eyebrow">Экономика · 4:10–4:40</div>
     <h2>Резерв закрывается без роста бюджета</h2>
   </div>
   <div class="body top gap" style="padding-top:26px">
@@ -412,17 +415,93 @@ ul.list li .mk{flex:none;width:20px;font-family:var(--mono);font-size:12px;color
       </div>
       <div>
         <h3>Почему числу можно верить</h3>
-        <p class="small" style="margin-top:10px">Показан <b>подтверждённый</b> резерв. Полный — 9,67 млн ₽ выручки и 1 690 участников; из него <b>вычтены шесть мер по четырём центрам</b>, у которых показатели внутри отчёта противоречат друг другу. Мы сами уменьшили свою цифру, а не защищаем максимальную.</p>
+        <p class="small" style="margin-top:10px">Показан <b>подтверждённый</b> резерв: из полного вычтены шесть мер по четырём центрам, у которых показатели внутри отчёта противоречат друг другу. По участникам это <b>1&nbsp;690&nbsp;→&nbsp;753</b>, по публикациям 550&nbsp;→&nbsp;317. Мы сами уменьшили свою цифру.</p>
       </div>
     </div>
   </div>
   <div class="foot"><span>раздел «Рекомендации» → совокупный резерв</span><span>критерий 4 · экономика</span></div>
 </section>
 
-<!-- 11 ─ честность ────────────────────────────────────────────────────── -->
-<section class="slide" data-budget="55" data-note="Блок E. Отличает нас от типового дашборда. Сказать прямо: в задании была обратная связь, в датасете её нет, синтетику мы рисовать не стали. Показать панель «Чего в данных нет».">
+<!-- 11 ─ рынок и модель ───────────────────────────────────────────────── -->
+<section class="slide" data-budget="30" data-note="Блок D2. Критерий 4, вторая половина: рынок и бизнес-модель. Главное сказать вслух: единица тиражирования — сеть, а не центр, и стоимость обслуживания от числа центров почти не растёт. Объём рынка по открытым источникам не выдумываем: называем эффект на одну сеть и множитель.">
   <div class="head">
-    <div class="eyebrow">Честность данных · 5:10–6:10</div>
+    <div class="eyebrow">Рынок и модель · 4:40–5:10</div>
+    <h2>Единица внедрения — сеть, а не центр</h2>
+  </div>
+  <div class="body top" style="padding-top:10px">
+    <div class="cols c2w" style="align-items:stretch">
+      <div style="display:flex;flex-direction:column;gap:18px">
+        <div class="cols c3" style="gap:0">
+          <div class="stat"><div class="k">Резерв на сеть из 20 центров</div><div class="v fig num">9,7<span class="u">млн ₽</span></div><div class="n">в год, подтверждённая часть, только выручка</div></div>
+          <div class="stat"><div class="k">В пересчёте на центр</div><div class="v fig num">≈ 0,48<span class="u">млн ₽</span></div><div class="n">в год, плюс работы, участники, публикации</div></div>
+          <div class="stat"><div class="k">Стоимость эксплуатации</div><div class="v fig num">1<span class="u">контейнер</span></div><div class="n">без внешних лицензий и платных сервисов</div></div>
+        </div>
+        <div class="rule"></div>
+        <ul class="list" style="gap:14px">
+          <li><span class="mk">→</span><span><b>Кому.</b> Тому, кто сводит отчётность нескольких учреждений: учредителю сети, региональному органу управления культурой, вузу-держателю центров. Признак применимости один — те же формы 1 и 2.</span></li>
+          <li><span class="mk">→</span><span><b>Что продаётся.</b> Не экран с графиками, а сокращение цикла «отчёт → решение». Внедрение — разовая настройка на форматы отчётности и развёртывание; дальше подписка на пересчёт, поддержку и новые показатели.</span></li>
+          <li><span class="mk">→</span><span><b>Почему тиражируется.</b> Конвейер читает формы, а не конкретные файлы. Новый центр — ещё один файл в каталоге, а не новая интеграция: стоимость обслуживания сети почти не растёт с числом центров.</span></li>
+        </ul>
+      </div>
+      <div class="panel">
+        <div class="eyebrow">Честно про рынок</div>
+        <p class="small" style="margin-top:12px">Объём рынка по открытым источникам мы не считали: в датасете его нет, а выдуманная цифра в семиминутной защите проверяется за полминуты.</p>
+        <p class="small" style="margin-top:12px">Считаем проверяемое: эффект на сеть, с которой работаем, и стоимость её обслуживания. Эффект линеен по числу <b>сетей</b>, а не центров — вторая такая же сеть даёт ещё 9,7 млн ₽ при той же стоимости разработки. Сколько таких сетей, знает заказчик; умножается одна и та же величина.</p>
+      </div>
+    </div>
+  </div>
+  <div class="foot"><span>экономика внедрения</span><span>критерий 4 · бизнес-модель</span></div>
+</section>
+
+<!-- 12 ─ процесс разработки ───────────────────────────────────────────── -->
+<section class="slide" data-budget="25" data-note="Блок E1. Положение требует показать процесс разработки. Логика рассказа: на каждом этапе было решение, и у каждого решения была цена. Сильнее всего звучит правая колонка — что мы выбросили. Назвать вслух хотя бы синтетический NPS и симулятор.">
+  <div class="head">
+    <div class="eyebrow">Процесс · 5:10–5:35</div>
+    <h2>Четыре решения, которые определили продукт</h2>
+  </div>
+  <div class="body top" style="padding-top:10px">
+    <div class="cols c2w" style="align-items:stretch">
+      <div class="cols c2" style="gap:22px 28px;align-content:start">
+        <div>
+          <div class="eyebrow">01 · Разбор</div>
+          <h3 style="margin-top:8px">Сначала журнал, потом цифры</h3>
+          <p class="small" style="margin-top:10px">Двадцать книг с разными шаблонами. Решили: ни одной правки молча — каждая попадает в журнал и видна рядом с числом.</p>
+        </div>
+        <div>
+          <div class="eyebrow">02 · Признаки</div>
+          <h3 style="margin-top:8px">Не сравнивать несравнимое</h3>
+          <p class="small" style="margin-top:10px">Доли каналов — состав, а не обычные числа. Решили: CLR-преобразование вместо сырых долей, иначе расстояния считаются неверно.</p>
+        </div>
+        <div>
+          <div class="eyebrow">03 · Модели</div>
+          <h3 style="margin-top:8px">Сначала проверка, потом вывод</h3>
+          <p class="small" style="margin-top:10px">На двадцати наблюдениях кластеры выходят всегда. Решили: k по четырём метрикам, разбиение принимается после теста значимости.</p>
+        </div>
+        <div>
+          <div class="eyebrow">04 · Витрина</div>
+          <h3 style="margin-top:8px">Только то, что пришло из API</h3>
+          <p class="small" style="margin-top:10px">Первый интерфейс на Vue показывал числа, зашитые в код. Решили: переписать с нуля и удалить всё, чего нет в ответах сервиса.</p>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="eyebrow">Что выбросили по дороге</div>
+        <h3 style="margin-top:10px">Отказ — тоже результат разработки</h3>
+        <ul class="list" style="margin-top:12px;gap:10px">
+          <li><span class="mk">→</span><span><b>Синтетическая обратная связь и NPS</b> — их нет в отчётности, а решать по выдуманному числу нельзя.</span></li>
+          <li><span class="mk">→</span><span><b>Симулятор с ползунками</b> — умножал уже посчитанные оценки на коэффициенты и выдавал это за эксперимент.</span></li>
+          <li><span class="mk">→</span><span><b>Квартальные ряды</b> — были записаны прямо в коде интерфейса, в формах их нет.</span></li>
+          <li><span class="mk">→</span><span><b>Радар «средней нормы сети»</b> — 50 баллов по каждой оси были условным ориентиром, а не расчётом.</span></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+  <div class="foot"><span>процесс разработки</span><span>критерий 1 · проработка</span></div>
+</section>
+
+<!-- 13 ─ честность ────────────────────────────────────────────────────── -->
+<section class="slide" data-budget="35" data-note="Блок E2. Отличает нас от типового дашборда. Сказать прямо: в задании была обратная связь, в датасете её нет, синтетику мы рисовать не стали. Показать панель «Чего в данных нет».">
+  <div class="head">
+    <div class="eyebrow">Честность данных · 5:35–6:10</div>
     <h2>Мы не рисуем то, чего нет</h2>
   </div>
   <div class="body top" style="padding-top:10px">
@@ -440,17 +519,17 @@ ul.list li .mk{flex:none;width:20px;font-family:var(--mono);font-size:12px;color
           </ul>
         </div>
       </div>
-      <div class="frame"><img class="shot crop" src="shots/eng.webp" alt="Раздел «Вовлечённость»"></div>
+      <div class="frame"><img class="shot fit" src="shots/gaps.webp" alt="Панель «Чего в данных нет»"></div>
     </div>
   </div>
   <div class="foot"><span>раздел «Вовлечённость»</span><span>критерий 1 · проработка</span></div>
 </section>
 
-<!-- 12 ─ технологии ───────────────────────────────────────────────────── -->
-<section class="slide" data-budget="20" data-note="Быстрый слайд. Не зачитывать таблицу — назвать два факта: конвейер целиком пересчитывается за 6,3 секунды и всё воспроизводится с фиксированным сидом.">
+<!-- 14 ─ технологии ───────────────────────────────────────────────────── -->
+<section class="slide" data-budget="20" data-note="Быстрый слайд. Не зачитывать таблицу — назвать два факта: конвейер целиком пересчитывается за 9,6 секунды и всё воспроизводится с фиксированным сидом.">
   <div class="head">
-    <div class="eyebrow">Как это устроено</div>
-    <h2>Конвейер целиком — 6,3 секунды</h2>
+    <div class="eyebrow">Архитектура · 6:10–6:30</div>
+    <h2>Конвейер целиком — 9,6 секунды</h2>
   </div>
   <div class="body top gap" style="padding-top:24px">
     <div class="cols c4" style="gap:20px">
@@ -461,7 +540,7 @@ ul.list li .mk{flex:none;width:20px;font-family:var(--mono);font-size:12px;color
     </div>
     <div class="rule"></div>
     <div class="cols c3">
-      <div class="stat"><div class="k">Сборка конвейера</div><div class="v fig num">6,3<span class="u">с</span></div><div class="n">от Excel до рекомендаций</div></div>
+      <div class="stat"><div class="k">Сборка конвейера</div><div class="v fig num">9,6<span class="u">с</span></div><div class="n">от книги Excel до готовой меры, на сервере демо</div></div>
       <div class="stat"><div class="k">Воспроизводимость</div><div class="v fig num">100<span class="u">%</span></div><div class="n">фиксированный сид во всех случайных процессах</div></div>
       <div class="stat"><div class="k">Развёрнуто</div><div class="v fig num">Docker</div><div class="n">HTTPS, автопродление сертификата</div></div>
     </div>
@@ -469,10 +548,10 @@ ul.list li .mk{flex:none;width:20px;font-family:var(--mono);font-size:12px;color
   <div class="foot"><span>архитектура</span><span>критерий 1 · проработка</span></div>
 </section>
 
-<!-- 13 ─ финал ────────────────────────────────────────────────────────── -->
+<!-- 15 ─ финал ────────────────────────────────────────────────────────── -->
 <section class="slide" data-budget="30" data-note="Блок F. Закрыть кругом: начали с «решений по отчётности не принимают» — заканчиваем «вот пятьдесят решений». Назвать ссылку и остановиться. Не добавлять новых фактов.">
   <div class="head">
-    <div class="eyebrow">Финал · 6:10–7:00</div>
+    <div class="eyebrow">Финал · 6:30–7:00</div>
     <h2>Готово к внедрению сегодня</h2>
   </div>
   <div class="body">
@@ -487,12 +566,14 @@ ul.list li .mk{flex:none;width:20px;font-family:var(--mono);font-size:12px;color
           <div class="stat"><div class="k">Новый показатель</div><div class="v fig" style="font-size:26px">одна запись</div><div class="n">в схеме показателей — и он в конвейере</div></div>
         </div>
       </div>
-      <div class="frame"><img class="shot crop" src="shots/orgs.webp" alt="Каталог организаций"></div>
+      <div class="frame"><img class="shot fit" src="shots/pace.webp" alt="Двадцать центров в порядке исполнения"></div>
     </div>
-    <div class="rule"></div>
-    <div style="display:flex;justify-content:space-between;align-items:baseline">
-      <span class="eyebrow">Демо</span>
-      <span style="font-family:var(--mono);font-size:22px;color:var(--ink)">vitaliysoftware.duckdns.org</span>
+    <div class="panel" style="display:flex;align-items:center;justify-content:space-between;gap:32px;padding:20px 28px">
+      <div>
+        <div class="eyebrow">Демо · открыто прямо сейчас</div>
+        <div style="font-family:var(--mono);font-size:26px;color:var(--ink);margin-top:8px">vitaliysoftware.duckdns.org</div>
+      </div>
+      <p class="small" style="max-width:44ch;margin:0">Можно открыть с телефона, пока мы говорим. Развёрнуто в Docker, работает по HTTPS.</p>
     </div>
   </div>
   <div class="foot"><span>Vitaliy Software Solutions</span><span>критерий 5 · презентация</span></div>
