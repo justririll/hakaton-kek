@@ -25,6 +25,8 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
+import zipfile
 from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
@@ -72,9 +74,16 @@ WARN = RGBColor(0xA8, 0x76, 0x0A)
 WARN_BG = RGBColor(0xF7, 0xF1, 0xE4)
 WARN_LINE = RGBColor(0xDC, 0xCB, 0xA6)
 
-SERIF = "Georgia"
-SANS = "Calibri"
-MONO = "Consolas"
+# Гарнитуры выбраны по одному признаку: чтобы колода одинаково раскладывалась
+# везде. Times New Roman, Arial и Courier New есть на любой Windows и macOS, а
+# LibreOffice на любой системе подставляет вместо них Liberation Serif, Sans и
+# Mono — метрически совпадающие знак в знак. Georgia и Calibri так не умеют:
+# свободного клона с теми же метриками у них нет, и на Linux строка уезжала.
+# Внедрить фирменные в файл нельзя: LibreOffice не читает шрифты, внедрённые
+# в .pptx (проверено), так что внедрение помогло бы только PowerPoint.
+SERIF = "Times New Roman"
+SANS = "Arial"
+MONO = "Courier New"
 
 
 @dataclass(frozen=True)
@@ -124,9 +133,9 @@ H1 = 30.0
 H1_LONG = 26.5
 H2 = 16.5
 LEDE = 16.5
-BODY = 13.0
+BODY = 13.5
 SMALL = 11.5
-NOTE = 10.0
+NOTE = 10.5
 MICRO = 9.0
 
 
@@ -282,12 +291,19 @@ def text(slide, x, y, w, chunks, *, size=BODY, color=None, line=1.4, face=SANS, 
     return y + height
 
 
-def label(slide, x, y, w, value, *, size=MICRO, color=None, align=PP_ALIGN.LEFT, face=MONO, spacing=1.2, caps=True):
-    """Надзаголовок: моноширинный, разрядка, прописные."""
+def label(slide, x, y, w, value, *, size=MICRO, color=None, align=PP_ALIGN.LEFT, face=SANS,
+          spacing=0.9, caps=True, bold=True):
+    """Надзаголовок: полужирный гротеск, разрядка, прописные.
+
+    Моноширинный на девяти пунктах слишком тонкий — на проекторе он пропадает,
+    поэтому Courier New оставлен только там, где моноширинность значима: адрес
+    демо и строка запроса.
+    """
     height = line_height(size, face, 1.0)
     frame = textbox(slide, x, y, w, height + 0.04)
     p = para(frame, first=True, line=1.0, align=align)
-    run(p, value, size=size, color=S.ink3 if color is None else color, face=face, spacing=spacing, caps=caps)
+    run(p, value, size=size, color=S.ink3 if color is None else color, face=face,
+        spacing=spacing, caps=caps, bold=bold)
     return y + height
 
 
@@ -474,7 +490,7 @@ def bullets(slide, x, y, w, items, *, markers=None, size=BODY, gap=0.20, marker_
         mark = markers[index] if markers else "→"
         frame = textbox(slide, x, cursor + 0.035, marker_w, 0.24)
         p = para(frame, first=True, line=1.0)
-        run(p, mark, size=size * 0.66, color=S.ink3, face=MONO, spacing=0.4)
+        run(p, mark, size=size * 0.7, color=S.ink3, face=SANS, spacing=0.4, bold=True)
         cursor = text(slide, inner_x, cursor, inner_w, chunks, size=size, line=line) + gap
     return cursor - gap
 
@@ -512,7 +528,7 @@ def panel_text_h(w, *, eyebrow=None, title=None, body=None, body_size=SMALL, gap
                  title_lines=None) -> float:
     total = 0.0
     if eyebrow:
-        total += line_height(MICRO, MONO, 1.0) + 0.12
+        total += line_height(MICRO, SANS, 1.0) + 0.12
     if title:
         total += (title_lines or count_lines([title], w, H2, SERIF)) * line_height(H2, SERIF, 1.08) + gap
     if body:
@@ -546,7 +562,7 @@ def compare_bar(slide, x, y, w, caption, part, whole, *, note=None):
     text(slide, x, y, w * 0.62, [caption], size=NOTE, line=1.1)
     frame = textbox(slide, x, y, w, line_height(NOTE, SANS, 1.0) + 0.05)
     p = para(frame, first=True, line=1.0, align=PP_ALIGN.RIGHT)
-    run(p, note or f"{share:.0%}", size=NOTE, color=S.ink, bold=True, face=MONO)
+    run(p, note or f"{share:.0%}", size=NOTE, color=S.ink, bold=True)
     track_y = y + line_height(NOTE, SANS, 1.0) + 0.10
     rect(slide, x, track_y, w, 0.085, fill=S.rule2, line=None, shape=MSO_SHAPE.RECTANGLE)
     if share > 0:
@@ -596,7 +612,7 @@ def slide_title(prs, index, total):
     height = line_height(DISPLAY, SERIF, 1.0)
     frame = textbox(slide, M, TOP + 0.34, left_w, height + 0.08)
     p = para(frame, first=True, line=1.0)
-    run(p, "ВитДашборд", size=DISPLAY, color=INK, bold=True, face=SERIF, spacing=-1.4)
+    run(p, "ВитДашборд", size=DISPLAY, color=INK, bold=True, face=SERIF, spacing=-1.0)
 
     cursor = TOP + 0.34 + height + 0.30
     cursor = text(slide, M, cursor, left_w, [
@@ -639,7 +655,7 @@ def slide_title(prs, index, total):
     for order, (clock, topic, block) in enumerate(ROUTE):
         frame = textbox(slide, inner_x, row_y + 0.015, 0.62, 0.24)
         p = para(frame, first=True, line=1.0)
-        run(p, clock, size=NOTE, color=INK3, face=MONO, spacing=0.3)
+        run(p, clock, size=NOTE, color=INK3, face=SANS, spacing=0.3, bold=True)
         text(slide, inner_x + 0.72, row_y, inner_w - 1.62, [topic], size=SMALL, line=1.25, color=INK)
         label(slide, inner_x, row_y + 0.02, inner_w, block, size=8.25, spacing=0.9,
               align=PP_ALIGN.RIGHT)
@@ -847,7 +863,7 @@ def slide_models(prs, index, total):
         run(p, name, size=SMALL + 0.5, color=INK, bold=True)
         frame = textbox(slide, x + PAD, top + 0.17, w - 2 * PAD, 0.26)
         p = para(frame, first=True, line=1.0, align=PP_ALIGN.RIGHT)
-        run(p, count, size=SMALL + 0.5, color=INK3, face=MONO)
+        run(p, count, size=SMALL + 0.5, color=INK3)
         text(slide, x + PAD + 0.24, top + 0.50, w - PAD - 0.48, [body], size=NOTE, line=1.35)
 
     foot(slide, "раздел «Кластеры»", "критерий 1 · проработка", index=index, total=total)
@@ -1032,7 +1048,7 @@ def slide_market(prs, index, total):
                            "Если спросят про объём рынка — ответ именно такой.")
     y = head(slide, "Рынок и модель · 4:40–5:10", "Единица внедрения — сеть, а не центр")
 
-    left_w = 7.45
+    left_w = 7.05
     right_x = M + left_w + 0.5
     right_w = CONTENT_W - left_w - 0.5
 
@@ -1050,11 +1066,11 @@ def slide_market(prs, index, total):
 
     rows = [
         ("Кому", "Тому, кто сводит отчётность нескольких учреждений: учредителю сети, "
-                 "региональному органу управления культурой, вузу-держателю центров. Признак "
-                 "применимости один — те же формы 1 и 2."),
-        ("Что продаётся", "Не экран с графиками, а сокращение цикла «отчёт → решение». Внедрение — "
-                          "разовая настройка на форматы отчётности и развёртывание; дальше "
-                          "подписка на пересчёт, поддержку и новые показатели."),
+                 "региональному органу управления культурой. Признак применимости один — "
+                 "те же формы 1 и 2."),
+        ("Что продаётся", "Не экран с графиками, а сокращение цикла «отчёт → решение». "
+                          "Внедрение — разовая настройка на форматы отчётности; дальше "
+                          "подписка на пересчёт и поддержку."),
         ("Почему тиражируется", "Конвейер читает формы, а не конкретные файлы. Новый центр — "
                                 "ещё один файл в каталоге, а не новая интеграция: стоимость "
                                 "обслуживания сети почти не растёт с числом центров."),
@@ -1075,14 +1091,12 @@ def slide_market(prs, index, total):
     inner_x, inner_w = right_x + PAD, right_w - 2 * PAD
     cursor = panel_text(slide, inner_x, y + PAD + 0.04, inner_w,
                         eyebrow="Честно про рынок",
-                        body=["Объём рынка по открытым источникам мы не считали: в датасете его "
-                              "нет, а выдуманная цифра в семиминутной защите проверяется за "
-                              "полминуты."])
+                        body=["Объём рынка по открытым источникам мы не считали: в датасете "
+                              "его нет, а выдуманная цифра проверяется за полминуты."])
     text(slide, inner_x, cursor + 0.28, inner_w, [
-        "Считаем проверяемое: эффект на сеть, с которой работаем, и стоимость её обслуживания. "
-        "Эффект линеен по числу ", ("сетей",), ", а не центров — вторая такая же сеть даёт ещё "
-        "9,7 млн ₽ при той же стоимости разработки. Сколько таких сетей, знает заказчик; "
-        "умножается одна и та же величина."], size=SMALL, line=1.45)
+        "Считаем проверяемое: эффект на сеть и стоимость её обслуживания. Эффект линеен по "
+        "числу ", ("сетей",), ", а не центров — вторая такая же сеть даёт ещё 9,7 млн ₽ при "
+        "той же стоимости разработки."], size=SMALL, line=1.45)
 
     kv_rows = [("Сетей в расчёте", "1"), ("Центров в сети", "20"), ("Годовой резерв", "9,7 млн ₽")]
     kv_top = BODY_BOT - PAD - kv_height(kv_rows)
@@ -1130,7 +1144,7 @@ def slide_process(prs, index, total):
                            "Назвать вслух хотя бы синтетический NPS и симулятор.")
     y = head(slide, "Процесс · 5:10–5:35", "Четыре решения, которые определили продукт")
 
-    left_w = 6.9
+    left_w = 7.1
     stages = [
         ("Разбор", "Сначала журнал, потом цифры",
          "Двадцать книг с разными шаблонами. Решили: ни одной правки молча — каждая попадает "
@@ -1160,7 +1174,7 @@ def slide_process(prs, index, total):
         hline(slide, x, top - (0.24 if order < 2 else row_gap / 2), col_w)
         frame = textbox(slide, x, top + 0.02, 0.42, 0.24)
         p = para(frame, first=True, line=1.0)
-        run(p, f"0{order + 1}", size=MICRO, color=INK3, face=MONO, spacing=0.6)
+        run(p, f"0{order + 1}", size=MICRO, color=INK3, spacing=0.6, bold=True)
         label(slide, x + 0.42, top, col_w - 0.42, name)
         frame = textbox(slide, x + 0.42, top + 0.28, body_w, head_h + 0.06)
         p = para(frame, first=True, line=1.08)
@@ -1213,7 +1227,7 @@ def slide_tech(prs, index, total):
     ]
     card_w = (CONTENT_W - 3 * 0.3) / 4
     inner_w = card_w - 2 * PAD
-    label_h = line_height(MICRO, MONO, 1.0)
+    label_h = line_height(MICRO, SANS, 1.0)
     card_h = PAD + label_h + 0.20 + max(
         block_h([body], inner_w, SMALL, SANS, 1.45) for _, body in cards) + PAD
     for order, (name, body) in enumerate(cards):
@@ -1245,7 +1259,7 @@ def slide_tech(prs, index, total):
         dot(slide, x, chain_y + 0.115, 0.11, INK if order == 0 else RULE2)
         frame = textbox(slide, x, chain_y + 0.40, step - 0.2, 0.26)
         p = para(frame, first=True, line=1.0)
-        run(p, number + "  ", size=MICRO, color=INK3, face=MONO, spacing=0.6)
+        run(p, number + "  ", size=MICRO, color=INK3, spacing=0.6, bold=True)
         run(p, name, size=SMALL + 0.5, color=INK, bold=True)
         text(slide, x, chain_y + 0.66, step - 0.2, [note], size=NOTE, line=1.25, color=INK3)
 
@@ -1310,6 +1324,33 @@ BUILDERS = [
 ]
 
 
+def set_theme_fonts(path: Path) -> None:
+    """Прописывает гарнитуры колоды в схему темы файла.
+
+    Шаблон python-pptx несёт в теме Calibri. Прямые начертания мы задаём сами,
+    но пустые абзацы и всё, что PowerPoint создаст при правке, наследуют именно
+    тему — и на машине без Calibri подставляется случайный шрифт.
+    """
+    scheme = (
+        '<a:fontScheme xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" '
+        'name="ВитДашборд">'
+        f'<a:majorFont><a:latin typeface="{SERIF}"/><a:ea typeface="{SERIF}"/>'
+        f'<a:cs typeface="{SERIF}"/></a:majorFont>'
+        f'<a:minorFont><a:latin typeface="{SANS}"/><a:ea typeface="{SANS}"/>'
+        f'<a:cs typeface="{SANS}"/></a:minorFont>'
+        '</a:fontScheme>'
+    )
+    pattern = re.compile(rb"<a:fontScheme.*?</a:fontScheme>", re.S)
+    tmp = path.with_suffix(".tmp")
+    with zipfile.ZipFile(path) as src, zipfile.ZipFile(tmp, "w", zipfile.ZIP_DEFLATED) as dst:
+        for item in src.infolist():
+            blob = src.read(item.filename)
+            if item.filename.startswith("ppt/theme/"):
+                blob = pattern.sub(scheme.encode("utf-8"), blob, count=1)
+            dst.writestr(item, blob)
+    tmp.replace(path)
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--out", default="vitdashboard-7min.pptx")
@@ -1323,6 +1364,7 @@ def main() -> None:
 
     out = Path(args.out) if Path(args.out).is_absolute() else HERE / args.out
     prs.save(out)
+    set_theme_fonts(out)
     print(f"{out} · {len(prs.slides._sldIdLst)} слайдов · {out.stat().st_size // 1024} КБ")
 
 

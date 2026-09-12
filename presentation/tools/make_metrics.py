@@ -2,21 +2,21 @@
 """Таблица ширин символов для раскладки колоды.
 
 Сборщик .pptx должен знать, сколько строк займёт абзац, — иначе блоки под ним
-встают наугад. Метрик PowerPoint-овских гарнитур у нас нет и быть не может, но
-для каждой есть свободный заменитель:
+встают наугад. Метрики берутся из тех шрифтов, которыми колода и набрана:
 
-    Calibri  → Carlito       метрически совпадает, ширины точные
-    Georgia  → Noto Serif    чуть шире оригинала
-    Consolas → моноширинный  0,6 em против 0,55 em у Consolas
+    Times New Roman → Liberation Serif
+    Arial           → Liberation Sans
+    Courier New     → Liberation Mono
 
-Оба заменителя шире оригинала, поэтому оценка строк консервативна: на реальном
-PowerPoint текст займёт столько же или меньше. Ими же подменяются гарнитуры при
-предпросмотре в LibreOffice, так что предпросмотр показывает худший случай.
+Liberation метрически совпадает с гарнитурами Microsoft знак в знак, и её
+подставляет любой LibreOffice. Поэтому одна и та же таблица описывает и то, что
+увидит PowerPoint на Windows, и то, что покажет LibreOffice на Linux, — расчёт
+раскладки точен, а не приблизителен.
 
 Таблица кладётся в metrics.json рядом со сборщиком и коммитится — сборка не
 требует ни интернета, ни установленных шрифтов.
 
-Запуск:  uv run --with fonttools python tools/make_metrics.py <каталог-со-шрифтами>
+Запуск:  uv run --with fonttools python tools/make_metrics.py
 """
 
 from __future__ import annotations
@@ -37,9 +37,9 @@ ALPHABET = (
 )
 
 FACES = {
-    "sans": {"regular": "Carlito-Regular.ttf", "bold": "Carlito-Bold.ttf"},
-    "serif": {"regular": "NotoSerif-Regular.ttf", "bold": "NotoSerif-Bold.ttf"},
-    "mono": {"regular": "NotoSansMono-Regular.ttf", "bold": "NotoSansMono-Bold.ttf"},
+    "sans": {"regular": "LiberationSans-Regular.ttf", "bold": "LiberationSans-Bold.ttf"},
+    "serif": {"regular": "LiberationSerif-Regular.ttf", "bold": "LiberationSerif-Bold.ttf"},
+    "mono": {"regular": "LiberationMono-Regular.ttf", "bold": "LiberationMono-Bold.ttf"},
 }
 
 
@@ -72,7 +72,7 @@ def widths(path: Path) -> dict[str, float]:
 
 def main() -> None:
     src = Path(sys.argv[1]) if len(sys.argv) > 1 else Path(".")
-    system = Path("/usr/share/fonts/noto")
+    system = Path("/usr/share/fonts/liberation")
 
     out: dict[str, object] = {
         "note": "ширины символов и высота строки в долях кегля (em)",
