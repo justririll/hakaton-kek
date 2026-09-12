@@ -1,14 +1,22 @@
 #!/usr/bin/env python3
 """Сборка колоды защиты в PowerPoint.
 
-HTML-версия (`index.html`) остаётся основной: она показывается с таймером и
-заметками. Этот файл собирает из того же содержания нативный .pptx — на случай,
-когда организаторы принимают только его.
+Слайды здесь настоящие: текстовые блоки правятся, фигуры остаются фигурами,
+в области notes лежит текст докладчика. Это не печать HTML-версии в картинки.
 
-Ключевое отличие от печати в PDF: слайды здесь настоящие, с текстовыми блоками,
-которые можно править, и с заметками докладчика в области notes. Гарнитуры взяты
-те, что есть на любой машине с PowerPoint (Georgia, Calibri, Consolas), — фирменные
-Literata и Inter пришлось бы внедрять в файл, а это работает не везде.
+Три вещи, на которых такая сборка обычно разваливается, решены явно:
+
+1. «Сколько строк займёт абзац». Без ответа на этот вопрос блок под абзацем
+   встаёт наугад — отсюда и налезающий текст, и дыры. Ширины символов и высота
+   строки лежат в metrics.json (см. tools/make_metrics.py); все отступы по
+   вертикали считаются, а не подбираются.
+2. Высота строки при одинарном интервале — это НЕ кегль. И PowerPoint, и
+   LibreOffice берут её из hhea (восходящая + нисходящая + зазор), около 1,22
+   кегля для Calibri. Множитель line_spacing домножает уже её.
+3. Гарнитуры. python-pptx пишет только `a:latin`, и на части систем под
+   кириллицу подставляется шрифт по умолчанию; set_face() пишет ещё `a:ea` и
+   `a:cs`. Взяты те, что есть на любой машине с PowerPoint: Georgia, Calibri,
+   Consolas.
 
 Запуск:  python build_pptx.py [--out vitdashboard-7min.pptx]
 """
@@ -16,6 +24,9 @@ Literata и Inter пришлось бы внедрять в файл, а это 
 from __future__ import annotations
 
 import argparse
+import json
+from contextlib import contextmanager
+from dataclasses import dataclass
 from pathlib import Path
 
 from pptx import Presentation
@@ -23,41 +34,100 @@ from pptx.dml.color import RGBColor
 from pptx.enum.shapes import MSO_SHAPE
 from pptx.enum.text import MSO_ANCHOR, PP_ALIGN
 from pptx.oxml.ns import qn
+from pptx.parts.image import Image
 from pptx.util import Emu, Inches, Pt
 
-# ── палитра витрины ───────────────────────────────────────────────────────────
+HERE = Path(__file__).resolve().parent
+PNG = HERE / "shots" / "pptx"
+
+# ── палитра ───────────────────────────────────────────────────────────────────
+# Те же значения, что у витрины: бумажный фон, три ступени чернил, две линейки.
 
 PAPER = RGBColor(0xF2, 0xEF, 0xE8)
 PANEL = RGBColor(0xFC, 0xFA, 0xF6)
-PANEL3 = RGBColor(0xED, 0xE9, 0xDF)
+PANEL2 = RGBColor(0xF7, 0xF4, 0xEC)
 INK = RGBColor(0x1B, 0x1A, 0x17)
 INK2 = RGBColor(0x56, 0x53, 0x4A)
 INK3 = RGBColor(0x84, 0x80, 0x6F)
 RULE = RGBColor(0xE3, 0xDE, 0xD3)
 RULE2 = RGBColor(0xD3, 0xCC, 0xBC)
 
+# Тёмный разворот — один на всю колоду, на слайде про деньги.
+D_PAPER = RGBColor(0x1B, 0x1A, 0x17)
+D_PANEL = RGBColor(0x26, 0x25, 0x20)
+D_INK = RGBColor(0xF2, 0xEF, 0xE8)
+D_INK2 = RGBColor(0xB4, 0xB0, 0xA2)
+D_INK3 = RGBColor(0x8B, 0x86, 0x77)
+D_RULE = RGBColor(0x3B, 0x39, 0x31)
+D_RULE2 = RGBColor(0x4C, 0x49, 0x3F)
+
+# Кластерные цвета витрины: проверены на различимость при дальтонизме,
+# поэтому и в колоде группы кодируются ими же, а не «какими получится».
 C0 = RGBColor(0x2B, 0x64, 0xA8)  # индиго
 C1 = RGBColor(0xA7, 0x6C, 0xB5)  # слива
 C2 = RGBColor(0xAA, 0x51, 0x31)  # терракота
 C3 = RGBColor(0x9E, 0x96, 0x2A)  # олива
 C4 = RGBColor(0x07, 0x8E, 0x7D)  # морская зелень
 WARN = RGBColor(0xA8, 0x76, 0x0A)
+WARN_BG = RGBColor(0xF7, 0xF1, 0xE4)
+WARN_LINE = RGBColor(0xDC, 0xCB, 0xA6)
 
 SERIF = "Georgia"
 SANS = "Calibri"
 MONO = "Consolas"
 
-# ── геометрия ─────────────────────────────────────────────────────────────────
+
+@dataclass(frozen=True)
+class Skin:
+    """Цвета одного разворота: светлого или тёмного."""
+
+    paper: RGBColor
+    panel: RGBColor
+    ink: RGBColor
+    ink2: RGBColor
+    ink3: RGBColor
+    rule: RGBColor
+    rule2: RGBColor
+
+
+LIGHT = Skin(PAPER, PANEL, INK, INK2, INK3, RULE, RULE2)
+DARK = Skin(D_PAPER, D_PANEL, D_INK, D_INK2, D_INK3, D_RULE, D_RULE2)
+S = LIGHT
+
+
+@contextmanager
+def skin(value: Skin):
+    global S
+    previous, S = S, value
+    try:
+        yield value
+    finally:
+        S = previous
+
+
+# ── сетка ─────────────────────────────────────────────────────────────────────
 
 W, H = 13.333, 7.5
-M = 0.62               # боковое поле
-TOP = 0.5
+M = 0.62                 # боковое поле
+TOP = 0.52               # верх надзаголовка
 CONTENT_W = W - 2 * M
+BODY_BOT = 6.60          # ниже этой линии содержимое не опускается
 FOOT_Y = 6.98
+PROG_Y = 6.80            # линейка хода выступления
 
-# HTML-колода показывает те же снимки в webp — он легче, но PowerPoint его
-# понимает не везде, поэтому для pptx рядом лежат png.
-PNG = Path(__file__).with_name("shots") / "pptx"
+GUTTER = 0.36            # колонок между блоками
+PAD = 0.24               # внутреннее поле панели
+
+# Кегли: чем меньше ступеней, тем спокойнее колода.
+DISPLAY = 50.0
+H1 = 30.0
+H1_LONG = 26.5
+H2 = 16.5
+LEDE = 16.5
+BODY = 13.0
+SMALL = 11.5
+NOTE = 10.0
+MICRO = 9.0
 
 
 def px(value: float) -> float:
@@ -65,23 +135,98 @@ def px(value: float) -> float:
     return value * W / 1280
 
 
+# ── метрики текста ────────────────────────────────────────────────────────────
+
+_METRICS = json.loads((HERE / "metrics.json").read_text(encoding="utf-8"))
+_FACE_KEY = {SANS: "sans", SERIF: "serif", MONO: "mono"}
+
+
+def _table(face: str, bold: bool) -> dict[str, float]:
+    return _METRICS["faces"][_FACE_KEY[face]]["bold" if bold else "regular"]
+
+
+def line_height(size: float, face: str = SANS, line: float = 1.0) -> float:
+    """Высота строки в дюймах при заданном множителе интервала."""
+    return size * _METRICS["line"][_FACE_KEY[face]] * line / 72
+
+
+def text_w(text: str, size: float, face: str = SANS, bold: bool = False, spacing: float = 0.0) -> float:
+    """Ширина строки в дюймах."""
+    table = _table(face, bold)
+    fallback = _METRICS["fallback"]
+    em = sum(table.get(ch, fallback) for ch in text)
+    return em * size / 72 + spacing * len(text) / 72
+
+
+def _chars(chunks) -> list[tuple[str, bool]]:
+    out: list[tuple[str, bool]] = []
+    for chunk in chunks:
+        text, bold = (chunk[0], True) if isinstance(chunk, tuple) else (chunk, False)
+        out.extend((ch, bold) for ch in text)
+    return out
+
+
+def count_lines(chunks, width: float, size: float, face: str = SANS, spacing: float = 0.0) -> int:
+    """Сколько строк займёт абзац из кусков разного начертания.
+
+    Жадный перенос по словам — ровно то, что делает и PowerPoint. Кернинг не
+    учитывается: он сужает строку, то есть ошибка всегда в запас.
+    """
+    table_r, table_b = _table(face, False), _table(face, True)
+    fallback = _METRICS["fallback"]
+    scale = size / 72
+
+    def advance(ch: str, bold: bool) -> float:
+        table = table_b if bold else table_r
+        return (table.get(ch, fallback) + spacing / size) * scale
+
+    tokens: list[list[tuple[str, bool]] | None] = []
+    current: list[tuple[str, bool]] = []
+    for ch, bold in _chars(chunks):
+        if ch in "  ":
+            if current:
+                tokens.append(current)
+                current = []
+            tokens.append(None)
+        else:
+            current.append((ch, bold))
+    if current:
+        tokens.append(current)
+
+    lines, used, pending_space = 1, 0.0, False
+    space = advance(" ", False)
+    for token in tokens:
+        if token is None:
+            pending_space = used > 0
+            continue
+        word = sum(advance(ch, bold) for ch, bold in token)
+        gap = space if pending_space else 0.0
+        if used > 0 and used + gap + word > width + 1e-6:
+            lines += 1
+            used = word
+        else:
+            used += gap + word
+        pending_space = False
+    return lines
+
+
+def block_h(chunks, width: float, size: float, face: str = SANS, line: float = 1.0) -> float:
+    """Высота абзаца в дюймах."""
+    return count_lines(chunks, width, size, face) * line_height(size, face, line)
+
+
 # ── примитивы ─────────────────────────────────────────────────────────────────
 
 
 def set_face(font, name: str) -> None:
-    """Гарнитура для латиницы, кириллицы и восточных наборов сразу.
-
-    python-pptx пишет только `a:latin`; без `a:cs` и `a:ea` PowerPoint на части
-    систем подставляет под кириллицу свой шрифт по умолчанию.
-    """
+    """Гарнитура для латиницы, кириллицы и восточных наборов сразу."""
     font.name = name
     rPr = font._element
     for tag in ("a:ea", "a:cs"):
         existing = rPr.find(qn(tag))
         if existing is not None:
             rPr.remove(existing)
-        node = rPr.makeelement(qn(tag), {"typeface": name})
-        rPr.append(node)
+        rPr.append(rPr.makeelement(qn(tag), {"typeface": name}))
 
 
 def textbox(slide, x, y, w, h, *, anchor=MSO_ANCHOR.TOP):
@@ -102,38 +247,56 @@ def para(frame, *, first=False, space_after=0, line=1.25, align=PP_ALIGN.LEFT, s
     return p
 
 
-def run(p, text, *, size=13.5, color=INK2, bold=False, face=SANS, spacing=None, caps=False):
+def run(p, text, *, size=BODY, color=None, bold=False, face=SANS, spacing=None, caps=False):
     r = p.add_run()
     r.text = text.upper() if caps else text
     set_face(r.font, face)
     r.font.size = Pt(size)
     r.font.bold = bold
-    r.font.color.rgb = color
+    r.font.color.rgb = S.ink2 if color is None else color
     if spacing is not None:
         r.font._element.set("spc", str(int(spacing * 100)))
     return r
 
 
-def rich(frame, chunks, *, first=False, size=13.5, color=INK2, line=1.35, space_after=0, face=SANS):
-    """Абзац из кусков: строка — обычный текст, кортеж — (текст, жирный/цвет)."""
-    p = para(frame, first=first, space_after=space_after, line=line)
+def rich(frame, chunks, *, first=False, size=BODY, color=None, line=1.4, align=PP_ALIGN.LEFT, face=SANS):
+    """Абзац из кусков: строка — обычный текст, кортеж — выделенный.
+
+    Кортеж (текст,) даёт полужирный чернилами, (текст, ЦВЕТ) — полужирный цветом.
+    """
+    p = para(frame, first=first, line=line, align=align)
     for chunk in chunks:
         if isinstance(chunk, tuple):
-            text, bold = chunk[0], True
-            tone = chunk[1] if len(chunk) > 1 and isinstance(chunk[1], RGBColor) else INK
-            run(p, text, size=size, color=tone, bold=bold, face=face)
+            tone = chunk[1] if len(chunk) > 1 and isinstance(chunk[1], RGBColor) else S.ink
+            run(p, chunk[0], size=size, color=tone, bold=True, face=face)
         else:
-            run(p, chunk, size=size, color=color, face=face)
+            run(p, chunk, size=size, color=S.ink2 if color is None else color, face=face)
     return p
 
 
-def no_shadow(shape) -> None:
-    """Снимает тень с фигуры.
+def text(slide, x, y, w, chunks, *, size=BODY, color=None, line=1.4, face=SANS, align=PP_ALIGN.LEFT):
+    """Абзац с возвратом нижней границы — на неё встаёт следующий блок."""
+    height = block_h(chunks, w, size, face, line)
+    frame = textbox(slide, x, y, w, height + 0.04)
+    rich(frame, chunks, first=True, size=size, color=color, line=line, face=face, align=align)
+    return y + height
 
-    Мало пустого `a:effectLst`: автофигура несёт ещё и `p:style` со ссылками на
-    эффекты темы, и часть просмотрщиков (в том числе LibreOffice) читает именно
-    её. Заливку и обводку мы всё равно задаём явно, поэтому ссылку на стиль
-    можно убрать целиком.
+
+def label(slide, x, y, w, value, *, size=MICRO, color=None, align=PP_ALIGN.LEFT, face=MONO, spacing=1.2, caps=True):
+    """Надзаголовок: моноширинный, разрядка, прописные."""
+    height = line_height(size, face, 1.0)
+    frame = textbox(slide, x, y, w, height + 0.04)
+    p = para(frame, first=True, line=1.0, align=align)
+    run(p, value, size=size, color=S.ink3 if color is None else color, face=face, spacing=spacing, caps=caps)
+    return y + height
+
+
+def no_shadow(shape) -> None:
+    """Снимает тень.
+
+    Пустого `a:effectLst` мало: автофигура несёт ещё `p:style` со ссылками на
+    эффекты темы, и часть просмотрщиков читает именно её. Заливку и обводку мы
+    задаём явно, поэтому ссылку можно убрать целиком.
     """
     element = shape._element
     spPr = element.spPr
@@ -142,15 +305,16 @@ def no_shadow(shape) -> None:
         if existing is not None:
             spPr.remove(existing)
     spPr.append(spPr.makeelement(qn("a:effectLst"), {}))
-
     style = element.find(qn("p:style"))
     if style is not None:
         element.remove(style)
 
 
-def rect(slide, x, y, w, h, *, fill=PANEL, line=RULE, width=0.75, shape=MSO_SHAPE.ROUNDED_RECTANGLE, radius=0.035):
+def rect(slide, x, y, w, h, *, fill=-1, line=-1, width=0.75, shape=MSO_SHAPE.ROUNDED_RECTANGLE, radius=0.035):
     box = slide.shapes.add_shape(shape, Inches(x), Inches(y), Inches(w), Inches(h))
     no_shadow(box)
+    fill = S.panel if fill == -1 else fill
+    line = S.rule if line == -1 else line
     if fill is None:
         box.fill.background()
     else:
@@ -167,11 +331,20 @@ def rect(slide, x, y, w, h, *, fill=PANEL, line=RULE, width=0.75, shape=MSO_SHAP
     return box
 
 
-def hline(slide, x, y, w, *, color=RULE, width=0.75):
-    line = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, Inches(x), Inches(y), Inches(w), Emu(6350))
+def hline(slide, x, y, w, *, color=-1, thick=6350):
+    line = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, Inches(x), Inches(y), Inches(w), Emu(thick))
     no_shadow(line)
     line.fill.solid()
-    line.fill.fore_color.rgb = color
+    line.fill.fore_color.rgb = S.rule if color == -1 else color
+    line.line.fill.background()
+    return line
+
+
+def vline(slide, x, y, h, *, color=-1):
+    line = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, Inches(x), Inches(y), Emu(6350), Inches(h))
+    no_shadow(line)
+    line.fill.solid()
+    line.fill.fore_color.rgb = S.rule if color == -1 else color
     line.line.fill.background()
     return line
 
@@ -185,25 +358,27 @@ def dot(slide, x, y, d, color):
     return circle
 
 
-def picture(slide, name, x, y, w, h, *, anchor="topleft"):
-    """Снимок в рамку с обрезкой, как object-fit: cover.
+def picture(slide, name, x, y, max_w, max_h, *, align="left", valign="top"):
+    """Снимок целиком, вписанный в рамку без обрезки.
 
-    Обрезается от левого верхнего угла: у снимков витрины смысловая часть —
-    заголовок панели и первые строки, срезать их по центру нельзя.
+    Кадр подбирается под пропорции самого снимка, а не наоборот: снимки для
+    колоды снимаются по границам панели (tools/shoot.mjs), поэтому обрезать их
+    нечем — в кадре и так ровно то, что нужно.
     """
-    pic = slide.shapes.add_picture(str(PNG / name), Inches(x), Inches(y), Inches(w), Inches(h))
-    native_w, native_h = pic.image.size
-    want = w / h
-    have = native_w / native_h
-    if have > want:                      # шире рамки — режем справа
-        cut = 1 - want / have
-        if anchor == "topleft":
-            pic.crop_right = cut
-        else:
-            pic.crop_left = pic.crop_right = cut / 2
-    elif have < want:                    # выше рамки — режем снизу
-        pic.crop_bottom = 1 - have / want
-    pic.line.color.rgb = RULE2
+    path = PNG / name
+    native_w, native_h = Image.from_file(str(path)).size
+    scale = min(max_w / native_w, max_h / native_h)
+    w, h = native_w * scale, native_h * scale
+    if align == "center":
+        x += (max_w - w) / 2
+    elif align == "right":
+        x += max_w - w
+    if valign == "middle":
+        y += (max_h - h) / 2
+    elif valign == "bottom":
+        y += max_h - h
+    pic = slide.shapes.add_picture(str(path), Inches(x), Inches(y), Inches(w), Inches(h))
+    pic.line.color.rgb = S.rule2
     pic.line.width = Pt(0.75)
     no_shadow(pic)
     return pic
@@ -212,338 +387,479 @@ def picture(slide, name, x, y, w, h, *, anchor="topleft"):
 # ── блоки слайда ──────────────────────────────────────────────────────────────
 
 
-def new_slide(prs, note=""):
+def new_slide(prs, note="", *, tone=LIGHT):
     slide = prs.slides.add_slide(prs.slide_layouts[6])
     slide.background.fill.solid()
-    slide.background.fill.fore_color.rgb = PAPER
+    slide.background.fill.fore_color.rgb = tone.paper
     if note:
         slide.notes_slide.notes_text_frame.text = note
     return slide
 
 
-def head(slide, eyebrow, title, *, title_size=30, y=TOP, rule=True):
-    frame = textbox(slide, M, y, CONTENT_W, 0.24)
+def head(slide, eyebrow, title, *, y=TOP, width=CONTENT_W):
+    """Надзаголовок, заголовок и линейка под ним. Возвращает верх содержимого."""
+    label(slide, M, y, width, eyebrow)
+    size = H1 if count_lines([title], width, H1, SERIF) == 1 else H1_LONG
+    lines = count_lines([title], width, size, SERIF)
+    height = lines * line_height(size, SERIF, 1.0)
+
+    frame = textbox(slide, M, y + 0.30, width, height + 0.06)
     p = para(frame, first=True, line=1.0)
-    run(p, eyebrow, size=9, color=INK3, face=MONO, spacing=1.2, caps=True)
+    run(p, title, size=size, color=S.ink, bold=True, face=SERIF, spacing=-0.6)
 
-    frame = textbox(slide, M, y + 0.3, CONTENT_W, 1.0)
-    p = para(frame, first=True, line=1.08)
-    run(p, title, size=title_size, color=INK, bold=True, face=SERIF, spacing=-0.6)
-
-    lines = 2 if len(title) > 58 else 1
-    bottom = y + 0.3 + lines * px(title_size / 0.75 * 1.08) + px(16)
-    if rule:
-        hline(slide, M, bottom, CONTENT_W)
-    return bottom + px(26)
+    rule_y = y + 0.30 + height + 0.13
+    hline(slide, M, rule_y, CONTENT_W)
+    return rule_y + 0.30
 
 
-def foot(slide, left, right):
-    frame = textbox(slide, M, FOOT_Y, CONTENT_W, 0.22)
+def foot(slide, left, right, *, index=None, total=14):
+    label(slide, M, FOOT_Y, CONTENT_W, left, size=8.25, spacing=0.8)
+    if index is not None:
+        label(slide, M, FOOT_Y, CONTENT_W, f"{index:02d} / {total}", size=8.25, spacing=0.8,
+              align=PP_ALIGN.RIGHT, caps=False)
+        label(slide, M, FOOT_Y, CONTENT_W - 0.78, right, size=8.25, spacing=0.8, align=PP_ALIGN.RIGHT)
+        # Линейка хода: сколько из семи минут уже позади.
+        hline(slide, M, PROG_Y, CONTENT_W)
+        hline(slide, M, PROG_Y, CONTENT_W * index / total, color=S.ink3, thick=12700)
+    else:
+        label(slide, M, FOOT_Y, CONTENT_W, right, size=8.25, spacing=0.8, align=PP_ALIGN.RIGHT)
+
+
+def stat(slide, x, y, w, caption, value, *, unit=None, note=None, size=30.0, tone=None):
+    """Показатель: подпись, крупное число, пояснение. Возвращает низ блока."""
+    cursor = text(slide, x, y, w, [caption], size=NOTE, line=1.1)
+
+    value_h = line_height(size, SANS, 1.0)
+    frame = textbox(slide, x, cursor + 0.09, w, value_h + 0.06)
     p = para(frame, first=True, line=1.0)
-    run(p, left, size=8.25, color=INK3, face=MONO, spacing=0.8, caps=True)
-    frame = textbox(slide, M, FOOT_Y, CONTENT_W, 0.22)
-    p = para(frame, first=True, line=1.0, align=PP_ALIGN.RIGHT)
-    run(p, right, size=8.25, color=INK3, face=MONO, spacing=0.8, caps=True)
-
-
-def stat(slide, x, y, w, label, value, *, unit=None, note=None, size=30):
-    frame = textbox(slide, x, y, w, 0.3)
-    p = para(frame, first=True, line=1.2)
-    run(p, label, size=9.75, color=INK2)
-
-    frame = textbox(slide, x, y + 0.24, w, px(size / 0.75 * 1.1))
-    p = para(frame, first=True, line=1.0)
-    run(p, value, size=size, color=INK, bold=True, face=SANS, spacing=-1.2)
+    run(p, value, size=size, color=S.ink if tone is None else tone, bold=True, face=SANS, spacing=-1.0)
     if unit:
-        run(p, " " + unit, size=11.25, color=INK3)
+        run(p, " " + unit, size=max(10.0, size * 0.30), color=S.ink3)
+    cursor += 0.09 + value_h
 
     if note:
-        frame = textbox(slide, x, y + 0.28 + px(size / 0.75 * 1.05), w, 0.5)
-        p = para(frame, first=True, line=1.25)
-        run(p, note, size=9.0, color=INK3)
+        cursor = text(slide, x, cursor + 0.10, w, [note], size=NOTE, line=1.25, color=S.ink3)
+    return cursor
 
 
-def bullets(slide, x, y, w, items, *, markers=None, size=12.75, gap=13, marker_w=0.22):
+def kv(slide, x, y, w, rows, *, size=SMALL, tone=None):
+    """Пары «подпись — значение» с волосяной линейкой между строками."""
+    step = line_height(size, SANS, 1.0) + 0.145
+    cursor = y
+    for index, (key, value) in enumerate(rows):
+        h = line_height(size, SANS, 1.0) + 0.05
+        frame = textbox(slide, x, cursor, w, h)
+        p = para(frame, first=True, line=1.0)
+        run(p, key, size=size, color=S.ink2)
+        frame = textbox(slide, x, cursor, w, h)
+        p = para(frame, first=True, line=1.0, align=PP_ALIGN.RIGHT)
+        run(p, value, size=size, color=S.ink if tone is None else tone, bold=True)
+        cursor += step
+        if index < len(rows) - 1:
+            hline(slide, x, cursor - 0.085, w)
+    return cursor - 0.145
+
+
+def kv_height(rows, size=SMALL) -> float:
+    step = line_height(size, SANS, 1.0) + 0.145
+    return len(rows) * step - 0.145
+
+
+def bullets(slide, x, y, w, items, *, markers=None, size=BODY, gap=0.20, marker_w=0.28, line=1.4):
     """Список с моноширинным маркером слева и висячим отступом."""
+    inner_x = x + marker_w
+    inner_w = w - marker_w
     cursor = y
     for index, chunks in enumerate(items):
         mark = markers[index] if markers else "→"
-        frame = textbox(slide, x, cursor + px(2), marker_w, 0.25)
+        frame = textbox(slide, x, cursor + 0.035, marker_w, 0.24)
         p = para(frame, first=True, line=1.0)
-        run(p, mark, size=8.5, color=INK3, face=MONO, spacing=0.4)
-
-        frame = textbox(slide, x + marker_w + px(6), cursor, w - marker_w - px(6), 0.4)
-        rich(frame, chunks, first=True, size=size, line=1.32)
-        lines = max(1, estimate_lines(chunks, w - marker_w - px(6), size))
-        cursor += lines * px(size / 0.75 * 1.32) + px(gap)
-    return cursor
+        run(p, mark, size=size * 0.66, color=S.ink3, face=MONO, spacing=0.4)
+        cursor = text(slide, inner_x, cursor, inner_w, chunks, size=size, line=line) + gap
+    return cursor - gap
 
 
-# Символов на дюйм при кегле 1 pt: Georgia шире Calibri, полужирный ещё шире.
-DENSITY = {SANS: 128, SERIF: 104, MONO: 108}
+def bullets_h(items, w, *, size=BODY, gap=0.20, marker_w=0.28, line=1.4) -> float:
+    total = 0.0
+    for chunks in items:
+        total += block_h(chunks, w - marker_w, size, SANS, line) + gap
+    return total - gap
 
+def panel_text(slide, x, y, w, *, eyebrow=None, title=None, body=None, body_size=SMALL,
+               gap=0.13, title_lines=None):
+    """Шапка панели: надзаголовок, антиква-заголовок, абзац. Возвращает низ.
 
-def estimate_lines(chunks, width_in, size_pt, face=SANS):
-    """Оценка числа строк — нужна, чтобы развести блоки по вертикали.
-
-    Метрик шрифта у нас нет, поэтому берём эмпирическую плотность символов и
-    сознательно округляем вверх: лишний зазор безопаснее наложения.
+    `title_lines` резервирует под заголовок фиксированное число строк. В ряду
+    карточек это единственный способ поставить тексты под заголовками на одну
+    линию: иначе карточка с коротким заголовком начинает абзац выше соседних.
     """
-    text = "".join(c[0] if isinstance(c, tuple) else c for c in chunks)
-    per_line = max(8, int(width_in * DENSITY.get(face, 128) / size_pt))
-    return max(1, -(-len(text) // per_line))
-
-
-def kv(slide, x, y, w, rows, *, size=11.25, gap=0.245):
-    """Пары «подпись — значение» с волосяной линейкой между строками."""
-    cursor = y
-    for index, (key, value) in enumerate(rows):
-        frame = textbox(slide, x, cursor, w, 0.24)
-        p = para(frame, first=True, line=1.15)
-        run(p, key, size=size, color=INK2)
-        frame = textbox(slide, x, cursor, w, 0.24)
-        p = para(frame, first=True, line=1.15, align=PP_ALIGN.RIGHT)
-        run(p, value, size=size, color=INK, bold=True)
-        cursor += gap
-        if index < len(rows) - 1:
-            hline(slide, x, cursor - px(6), w)
-    return cursor
-
-
-def panel_head(slide, x, y, w, *, eyebrow=None, title=None, body=None, body_size=11.25):
     cursor = y
     if eyebrow:
-        frame = textbox(slide, x, cursor, w, 0.22)
-        p = para(frame, first=True, line=1.0)
-        run(p, eyebrow, size=9, color=INK3, face=MONO, spacing=1.2, caps=True)
-        cursor += 0.24
+        cursor = label(slide, x, cursor, w, eyebrow) + 0.12
     if title:
-        frame = textbox(slide, x, cursor, w, 0.9)
-        p = para(frame, first=True, line=1.15)
-        run(p, title, size=16.5, color=INK, bold=True, face=SERIF, spacing=-0.3)
-        cursor += px(22 / 0.75 * 1.15) * estimate_lines([title], w, 16.5, SERIF) + px(8)
+        lines = title_lines or count_lines([title], w, H2, SERIF)
+        height = lines * line_height(H2, SERIF, 1.08)
+        frame = textbox(slide, x, cursor, w, height + 0.06)
+        p = para(frame, first=True, line=1.08)
+        run(p, title, size=H2, color=S.ink, bold=True, face=SERIF, spacing=-0.3)
+        cursor += height + gap
     if body:
-        frame = textbox(slide, x, cursor, w, 1.2)
-        rich(frame, body, first=True, size=body_size, line=1.4)
-        cursor += estimate_lines(body, w, body_size) * px(body_size / 0.75 * 1.4) + px(8)
+        cursor = text(slide, x, cursor, w, body, size=body_size, line=1.45)
     return cursor
 
+
+def panel_text_h(w, *, eyebrow=None, title=None, body=None, body_size=SMALL, gap=0.13,
+                 title_lines=None) -> float:
+    total = 0.0
+    if eyebrow:
+        total += line_height(MICRO, MONO, 1.0) + 0.12
+    if title:
+        total += (title_lines or count_lines([title], w, H2, SERIF)) * line_height(H2, SERIF, 1.08) + gap
+    if body:
+        total += block_h(body, w, body_size, SANS, 1.45)
+    return total
+
+
+def title_lines_max(titles, w) -> int:
+    return max(count_lines([t], w, H2, SERIF) for t in titles)
+
+
+def bullets_fit(slide, x, y, w, items, bottom, *, markers=None, size=BODY,
+                min_gap=0.16, max_gap=0.46, marker_w=0.28, line=1.4):
+    """Список, растянутый до нижней границы полосы.
+
+    Зазор между пунктами решается из доступной высоты, а не задаётся числом:
+    так список не жмётся к заголовку на пустом слайде и не вылезает за панель
+    на плотном.
+    """
+    natural = bullets_h(items, w, size=size, gap=0.0, marker_w=marker_w, line=line)
+    slack = bottom - y - natural
+    gap = slack / max(1, len(items) - 1) if len(items) > 1 else 0.0
+    gap = min(max_gap, max(min_gap, gap))
+    return bullets(slide, x, y, w, items, markers=markers, size=size, gap=gap,
+                   marker_w=marker_w, line=line)
+
+
+def compare_bar(slide, x, y, w, caption, part, whole, *, note=None):
+    """Полоса «часть от целого»: сколько из полного резерва подтвердилось."""
+    share = 0.0 if whole <= 0 else min(1.0, part / whole)
+    text(slide, x, y, w * 0.62, [caption], size=NOTE, line=1.1)
+    frame = textbox(slide, x, y, w, line_height(NOTE, SANS, 1.0) + 0.05)
+    p = para(frame, first=True, line=1.0, align=PP_ALIGN.RIGHT)
+    run(p, note or f"{share:.0%}", size=NOTE, color=S.ink, bold=True, face=MONO)
+    track_y = y + line_height(NOTE, SANS, 1.0) + 0.10
+    rect(slide, x, track_y, w, 0.085, fill=S.rule2, line=None, shape=MSO_SHAPE.RECTANGLE)
+    if share > 0:
+        rect(slide, x, track_y, w * share, 0.085, fill=S.ink, line=None, shape=MSO_SHAPE.RECTANGLE)
+    return track_y + 0.085
+
+
+def tag(slide, x, y, chunks_text, *, fill=WARN_BG, line=WARN_LINE, color=WARN, size=NOTE):
+    """Небольшая плашка по ширине текста."""
+    w = text_w(chunks_text, size) + 0.34
+    h = line_height(size, SANS, 1.0) + 0.16
+    box = rect(slide, x, y, w, h, fill=fill, line=line, radius=0.5)
+    frame = box.text_frame
+    frame.margin_left = frame.margin_right = frame.margin_top = frame.margin_bottom = 0
+    frame.vertical_anchor = MSO_ANCHOR.MIDDLE
+    p = para(frame, first=True, line=1.0, align=PP_ALIGN.CENTER)
+    run(p, chunks_text, size=size, color=color)
+    return y + h
 
 # ── слайды ────────────────────────────────────────────────────────────────────
 
 
-def slide_title(prs):
+# Положение требует показать концепцию, процесс разработки и анализ результатов —
+# поэтому у каждой строки маршрута проставлен свой блок: судье видно сразу, что
+# ни одна из трёх частей не пропущена.
+ROUTE = [
+    ("0:00", "Проблема и решение", "концепция"),
+    ("0:25", "Что в датасете на самом деле", "данные"),
+    ("1:10", "Кластеризация аудиторных моделей", "метод"),
+    ("2:10", "Проверка: кластеры не случайны", "результат"),
+    ("3:10", "Адресные рекомендации", "результат"),
+    ("4:10", "Экономика, рынок, модель", "результат"),
+    ("5:10", "Процесс разработки и отказы", "процесс"),
+    ("6:10", "Внедрение и демо", "итог"),
+]
+
+
+def slide_title(prs, index, total):
     slide = new_slide(prs, "Не начинаем отсчёт: слайд стоит на экране, пока нас представляют. "
-                           "Открыть демо в соседней вкладке заранее.")
-    frame = textbox(slide, M, TOP, CONTENT_W, 0.24)
+                           "Демо открыть в соседней вкладке заранее.")
+    left_w = 6.45
+    right_x = M + left_w + 0.55
+    right_w = CONTENT_W - left_w - 0.55
+
+    label(slide, M, TOP, left_w, "Vitaliy Software Solutions · хакатон")
+
+    height = line_height(DISPLAY, SERIF, 1.0)
+    frame = textbox(slide, M, TOP + 0.34, left_w, height + 0.08)
     p = para(frame, first=True, line=1.0)
-    run(p, "Vitaliy Software Solutions · хакатон", size=9, color=INK3, face=MONO, spacing=1.2, caps=True)
+    run(p, "ВитДашборд", size=DISPLAY, color=INK, bold=True, face=SERIF, spacing=-1.4)
 
-    frame = textbox(slide, M, TOP + 0.36, CONTENT_W, 1.0)
-    p = para(frame, first=True, line=1.02)
-    run(p, "ВитДашборд", size=43.5, color=INK, bold=True, face=SERIF, spacing=-1.1)
+    cursor = TOP + 0.34 + height + 0.30
+    cursor = text(slide, M, cursor, left_w, [
+        "Аналитическая платформа сети центров прототипирования и творческих "
+        "инкубаторов при вузах культуры: динамика показателей, кластеризация "
+        "аудиторных моделей и адресные рекомендации по программированию."],
+        size=LEDE, line=1.45)
 
-    frame = textbox(slide, M, TOP + 1.34, px(800), 1.7)
-    rich(frame, ["Аналитическая платформа сети центров прототипирования и творческих инкубаторов "
-                 "при вузах культуры: динамика показателей, кластеризация аудиторных моделей "
-                 "и адресные рекомендации по программированию."], first=True, size=15.75, line=1.45)
-
-    hline(slide, M, 4.74, CONTENT_W)
-    frame = textbox(slide, M, 4.9, CONTENT_W, 0.3)
-    p = para(frame, first=True, line=1.0)
-    for index, part in enumerate(["DATASET · 20 книг Excel", "разбор Форм 1 и 2", "11 признаков",
-                                  "5 моделей", "50 действий"]):
-        if index:
-            run(p, "   →   ", size=9.75, color=INK3, face=MONO)
-        run(p, part, size=9.75, color=INK2, face=MONO, spacing=0.5)
-    hline(slide, M, 5.28, CONTENT_W)
-
-    column = CONTENT_W / 4
-    for index, (label, value, unit) in enumerate([
+    # Четыре числа таблицей, а не сеткой: они заполняют колонку до низа полосы
+    # и читаются сверху вниз — как оглавление к тому, что будет дальше.
+    facts = [
         ("Центров в сети", "20", None),
         ("Аудиторных моделей", "5", None),
         ("Адресных мер", "50", None),
-        ("Резерв выручки", "9,7", "млн ₽"),
-    ]):
-        stat(slide, M + index * column, 5.62, column - 0.2, label, value, unit=unit)
+        ("Подтверждённый резерв", "9,7", "млн ₽"),
+    ]
+    top = cursor + 0.40
+    step = (BODY_BOT - top) / len(facts)
+    for order, (caption, value, unit) in enumerate(facts):
+        row_y = top + order * step
+        hline(slide, M, row_y, left_w)
+        text(slide, M, row_y + 0.18, left_w * 0.62, [caption], size=SMALL, line=1.1)
+        frame = textbox(slide, M, row_y + 0.13, left_w, 0.5)
+        p = para(frame, first=True, line=1.0, align=PP_ALIGN.RIGHT)
+        run(p, value, size=28.0, color=INK, bold=True, spacing=-0.8)
+        if unit:
+            run(p, " " + unit, size=NOTE, color=INK3)
+    hline(slide, M, BODY_BOT, left_w)
+
+    # Маршрут семи минут: судьи видят структуру доклада до того, как он начался.
+    box_h = BODY_BOT - TOP + 0.08
+    rect(slide, right_x, TOP - 0.08, right_w, box_h)
+    inner_x, inner_w = right_x + PAD + 0.04, right_w - 2 * (PAD + 0.04)
+    label(slide, inner_x, TOP + 0.20, inner_w, "Маршрут защиты · 7 минут")
+    row_h = line_height(SMALL, SANS, 1.25)
+    first_y = TOP + 0.66
+    last_y = TOP - 0.08 + box_h - 0.34 - row_h
+    step = (last_y - first_y) / (len(ROUTE) - 1)
+    row_y = first_y
+    for order, (clock, topic, block) in enumerate(ROUTE):
+        frame = textbox(slide, inner_x, row_y + 0.015, 0.62, 0.24)
+        p = para(frame, first=True, line=1.0)
+        run(p, clock, size=NOTE, color=INK3, face=MONO, spacing=0.3)
+        text(slide, inner_x + 0.72, row_y, inner_w - 1.62, [topic], size=SMALL, line=1.25, color=INK)
+        label(slide, inner_x, row_y + 0.02, inner_w, block, size=8.25, spacing=0.9,
+              align=PP_ALIGN.RIGHT)
+        if order < len(ROUTE) - 1:
+            hline(slide, inner_x, row_y + (row_h + step) / 2, inner_w)
+        row_y += step
 
     foot(slide, "vitaliysoftware.duckdns.org", "защита · 7 минут")
 
 
-def slide_problem(prs):
+def slide_problem(prs, index, total):
     slide = new_slide(prs, "Блок A1. Заход. Утверждение: отчётность есть, управления по ней нет. "
                            "Не торопиться — это рамка всего выступления. Закончить фразой "
                            "«мы превращаем эту отчётность в действия».")
     y = head(slide, "Проблема · 0:00–0:25", "Отчётность сдают. Решений по ней не принимают.")
 
     cards = [
-        ("Двадцать шаблонов",
+        ("01", "Двадцать шаблонов",
          "Каждый центр заполняет формы по-своему: где-то тысячи рублей подписаны рублями, "
-         "где-то итог не сходится с подпунктами. Свести их вручную — работа на неделю."),
-        ("Сравнивать не с чем",
+         "где-то итог не сходится с подпунктами. Свести их вручную — работа на неделю.",
+         "26 правок потребовалось только на разбор"),
+        ("02", "Сравнивать не с чем",
          "Консерватория и центр цифрового контента работают с разной аудиторией. Сравнение "
-         "«всех со всеми» даёт рейтинг, а не управленческий вывод."),
-        ("Видно только постфактум",
+         "«всех со всеми» даёт рейтинг, а не управленческий вывод.",
+         "5 аудиторных моделей вместо одного рейтинга"),
+        ("03", "Видно только постфактум",
          "К декабрю выясняется, что часть центров не вышла на план. В сентябре это уже видно "
-         "в цифрах — но никто их не сводит."),
+         "в цифрах — но никто их не сводит.",
+         "7 центров в зоне риска — видно уже сейчас"),
     ]
-    gap = 0.3
-    card_w = (CONTENT_W - 2 * gap) / 3
-    for index, (title, body) in enumerate(cards):
-        x = M + index * (card_w + gap)
-        rect(slide, x, y, card_w, 2.05)
-        panel_head(slide, x + 0.22, y + 0.2, card_w - 0.44, title=title, body=[body])
+    card_w = (CONTENT_W - 2 * GUTTER) / 3
+    inner_w = card_w - 2 * PAD
+    title_top = PAD + 0.42
+    body_h = max(panel_text_h(inner_w, title=t, body=[b], gap=0.16) for _, t, b, _ in cards)
+    kicker_h = line_height(SMALL, SANS, 1.3)
+    card_h = title_top + body_h + 0.34 + kicker_h + PAD
+    for order, (number, title, body, kicker) in enumerate(cards):
+        x = M + order * (card_w + GUTTER)
+        rect(slide, x, y, card_w, card_h)
+        label(slide, x + PAD, y + PAD, inner_w, number, spacing=0.6)
+        panel_text(slide, x + PAD, y + title_top, inner_w, title=title, body=[body], gap=0.16,
+                   title_lines=1)
+        hline(slide, x + PAD, y + title_top + body_h + 0.17, inner_w)
+        text(slide, x + PAD, y + title_top + body_h + 0.34, inner_w, [(kicker,)],
+             size=SMALL, line=1.3)
 
-    hline(slide, M, y + 2.45, CONTENT_W)
-    frame = textbox(slide, M, y + 2.68, px(880), 0.9)
-    rich(frame, [("Мы сделали платформу, которая превращает эту отчётность в конкретные "
-                  "управленческие действия.",), " Она развёрнута, работает и открыта по ссылке."],
-         first=True, size=15.75, line=1.42)
+    statement = [("Мы сделали платформу, которая превращает эту отчётность в конкретные "
+                  "управленческие действия.",), " Она развёрнута, работает и открыта по ссылке."]
+    statement_h = block_h(statement, 10.6, 19.0, SANS, 1.38)
+    text(slide, M, BODY_BOT - statement_h, 10.6, statement, size=19.0, line=1.38)
+    hline(slide, M, BODY_BOT - statement_h - 0.34, CONTENT_W)
 
-    foot(slide, "ВитДашборд", "критерий 2 · актуальность")
+    foot(slide, "ВитДашборд", "критерий 2 · актуальность", index=index, total=total)
 
 
-def slide_dataset(prs):
+def slide_dataset(prs, index, total):
     slide = new_slide(prs, "Блок A2. Проблема доказывается самим датасетом. Назвать три числа: "
                            "26 правок, 17 противоречий, 13 центров с пометками. Ключевая фраза: "
                            "«мы не чинили данные молча — каждая правка записана».")
     y = head(slide, "Актуальность · 0:25–1:10", "Проблема видна в самом датасете")
 
-    left_w = px(690)
-    column = left_w / 3
-    for index, (label, value, unit, note) in enumerate([
+    left_w = 6.55
+    right_x = M + left_w + GUTTER
+    right_w = CONTENT_W - left_w - GUTTER
+
+    column = (left_w - 0.5) / 3
+    stat_bottom = y
+    for order, (caption, value, unit, note) in enumerate([
         ("Правок при разборе", "26", None, "единицы, пустые строки, расхождения итогов"),
         ("Противоречий", "17", None, "показатели не сходятся между формами"),
         ("Центров с пометками", "13", "из 20", "у четырёх вклад в резерв не засчитан"),
     ]):
-        stat(slide, M + index * column, y, column - 0.16, label, value, unit=unit, note=note)
+        stat_bottom = max(stat_bottom, stat(
+            slide, M + order * (column + 0.25), y, column, caption, value, unit=unit, note=note, size=32))
 
-    box_y = y + 1.5
-    rect(slide, M, box_y, left_w, 2.65)
-    inner = panel_head(slide, M + 0.24, box_y + 0.22, left_w - 0.48, title="Три примера из журнала")
-    bullets(slide, M + 0.24, inner, left_w - 0.48, [
+    box_y = stat_bottom + 0.42
+    rect(slide, M, box_y, left_w, BODY_BOT - box_y)
+    inner = panel_text(slide, M + PAD, box_y + PAD, left_w - 2 * PAD, title="Три примера из журнала")
+    bullets_fit(slide, M + PAD, inner + 0.22, left_w - 2 * PAD, [
         ["Строка подписана «тыс. рублей», но перевод даёт величину ", ("в 475 раз выше медианы сети",),
          " — подпись признана ошибочной, значение оставлено в рублях."],
         ["Разработано ", ("69 форматов при 21 обученном",), ": меньше одного участника на мероприятие "
          "— вероятна ошибка в строках 3.1–3.4 Формы 2."],
         ["Резидентов ", ("131 при 58 обученных",), " — показатели ведутся по разным контурам, "
          "сравнение по ним недостоверно."],
-    ], markers=["01", "02", "03"], size=11.25, gap=11, marker_w=0.26)
+    ], BODY_BOT - PAD, markers=["01", "02", "03"], size=SMALL, marker_w=0.34)
 
-    picture(slide, "quality.png", M + left_w + 0.3, y, CONTENT_W - left_w - 0.3, 4.15)
-    foot(slide, "раздел «Качество данных»", "критерий 2 · актуальность")
+    picture(slide, "quality.png", right_x, y, right_w, BODY_BOT - y)
+    foot(slide, "раздел «Качество данных»", "критерий 2 · актуальность", index=index, total=total)
 
 
-def slide_solution(prs):
+def slide_solution(prs, index, total):
     slide = new_slide(prs, "Короткий переход. Показать обзор. Одна мысль: двадцать книг Excel "
-                           "сведены в один экран, и каждое число кликабельно до исходной строки отчёта.")
-    y = head(slide, "Решение", "Двадцать книг Excel — один экран")
+                           "сведены в один экран, и каждое число раскрывается до исходной строки отчёта.")
+    y = head(slide, "Решение · 1:10–1:25", "Двадцать книг Excel — один экран")
 
-    shot_w = px(700)
-    picture(slide, "overview.png", M, y, shot_w, 3.95)
+    shot_w = 5.65
+    picture(slide, "overview.png", M, y, shot_w, BODY_BOT - y)
 
-    x = M + shot_w + 0.36
-    w = CONTENT_W - shot_w - 0.36
-    cursor = bullets(slide, x, y + 0.1, w, [
+    x = M + shot_w + 0.46
+    w = CONTENT_W - shot_w - 0.46
+
+    # Нижние сноски прижаты к низу полосы, список тянется от заголовка к ним.
+    foot1 = ["Семь разделов: обзор, динамика, вовлечённость, кластеры, организации, "
+             "рекомендации, качество данных."]
+    foot2 = ["Источник — только годовые формы отчётности. Ни одного показателя, "
+             "которого нет в исходных файлах."]
+    h2 = block_h(foot2, w, SMALL, SANS, 1.45)
+    h1 = block_h(foot1, w, SMALL, SANS, 1.45)
+    y2 = BODY_BOT - h2
+    y1 = y2 - 0.34 - h1
+    text(slide, x, y2, w, foot2, size=SMALL, line=1.45, color=INK3)
+    hline(slide, x, y2 - 0.20, w)
+    text(slide, x, y1, w, foot1, size=SMALL, line=1.45)
+    hline(slide, x, y1 - 0.34, w)
+
+    bullets_fit(slide, x, y + 0.06, w, [
         [("4 193 участника",), " за девять отчётных месяцев, 307 мероприятий, "
          "2 074 готовые работы, 25,0 млн ₽ платных услуг."],
         [("7 центров",), " при текущем темпе не выходят на годовую цель — это видно в сентябре, "
          "а не в декабре."],
         ["Любое число раскрывается до карточки центра, исходного файла и строки формы."],
-    ], size=12.75, gap=20)
+    ], y1 - 0.60, size=BODY)
 
-    hline(slide, x, cursor + 0.14, w)
-    frame = textbox(slide, x, cursor + 0.34, w, 0.8)
-    rich(frame, ["Семь разделов: обзор, динамика, вовлечённость, кластеры, организации, "
-                 "рекомендации, качество данных."], first=True, size=11.25, line=1.4)
-
-    foot(slide, "раздел «Обзор»", "критерий 1 · проработка")
+    foot(slide, "раздел «Обзор»", "критерий 1 · проработка", index=index, total=total)
 
 
-def slide_why_clusters(prs):
+def slide_why_clusters(prs, index, total):
     slide = new_slide(prs, "Блок B1, первая половина. Главная мысль: кластеризуем не посетителей — "
                            "их персональных данных нет и быть не должно, — а аудиторные модели центров. "
                            "Сравнивать можно только с равными.")
-    y = head(slide, "Кластеризация · 1:10–2:10", "Сравнивать можно только с равными")
+    y = head(slide, "Кластеризация · 1:25–1:50", "Сравнивать можно только с равными")
 
-    half = (CONTENT_W - 0.34) / 2
-    frame = textbox(slide, M, y, half, 1.2)
-    rich(frame, ["Персональных данных посетителей в отчётности нет и быть не должно. Зато у каждого "
-                 "центра есть ", ("профиль аудитории",), " — и его можно кластеризовать."],
-         first=True, size=15.75, line=1.45)
+    half = (CONTENT_W - 0.52) / 2
+    cursor = text(slide, M, y, half, [
+        "Персональных данных посетителей в отчётности нет и быть не должно. Зато у каждого "
+        "центра есть ", ("профиль аудитории",), " — и его можно кластеризовать."],
+        size=LEDE, line=1.45)
 
-    hline(slide, M, y + 1.28, half)
-    blocks = [("Состав", "Доли четырёх каналов обучения"),
-              ("Масштаб", "Размер аудитории и линейки форматов"),
-              ("Глубина", "Наполняемость и доля резидентов"),
-              ("Отдача", "Продукты, выручка, публичность")]
-    col_w = (half - 0.26) / 2
-    for index, (name, body) in enumerate(blocks):
-        x = M + (index % 2) * (col_w + 0.26)
-        row_y = y + 1.5 + (index // 2) * 0.86
-        frame = textbox(slide, x, row_y, col_w, 0.22)
-        p = para(frame, first=True, line=1.0)
-        run(p, name, size=9, color=INK3, face=MONO, spacing=1.2, caps=True)
-        frame = textbox(slide, x, row_y + 0.24, col_w, 0.5)
-        rich(frame, [body], first=True, size=11.25, line=1.35)
+    hline(slide, M, cursor + 0.34, half)
+    blocks = [
+        ("Состав", "Доли четырёх каналов обучения: модули, мастер-классы, повышение "
+                   "квалификации, переподготовка"),
+        ("Масштаб", "Размер аудитории и ширина линейки форматов"),
+        ("Глубина", "Наполняемость мероприятия и доля закрепившихся резидентов"),
+        ("Отдача", "Творческие продукты, платные услуги, публичность результата"),
+    ]
+    col_w = (half - 0.32) / 2
+    row_y = cursor + 0.62
+    row_h = (BODY_BOT - row_y + 0.1) / 2
+    for order, (name, body) in enumerate(blocks):
+        x = M + (order % 2) * (col_w + 0.32)
+        top = row_y + (order // 2) * row_h
+        label(slide, x, top, col_w, name)
+        text(slide, x, top + 0.30, col_w, [body], size=SMALL, line=1.4)
 
-    x = M + half + 0.34
-    rect(slide, x, y, half, 3.55)
-    cursor = panel_head(slide, x + 0.24, y + 0.24, half - 0.48,
+    x = M + half + 0.52
+    rect(slide, x, y, half, BODY_BOT - y)
+    inner_x, inner_w = x + PAD, half - 2 * PAD
+    cursor = panel_text(slide, inner_x, y + PAD + 0.04, inner_w,
                         title="Одна техническая деталь",
                         body=["Доли каналов — ", ("композиционные данные",), ": они лежат на симплексе, "
                               "сумма всегда равна единице. Признаки линейно зависимы, и обычная "
                               "стандартизация для них некорректна — евклидово расстояние искажает близость."])
-    frame = textbox(slide, x + 0.24, cursor + 0.06, half - 0.48, 0.9)
-    rich(frame, ["Применено ", ("центрированное логарифмическое преобразование",), " с мультипликативной "
-                 "заменой нулей — стандартная практика для составов."], first=True, size=11.25, line=1.4)
-    hline(slide, x + 0.24, cursor + 0.96, half - 0.48)
-    kv(slide, x + 0.24, cursor + 1.12, half - 0.48,
-       [("Признаков", "11"), ("Наблюдений", "20"), ("Компонент после сжатия", "5 · 90 % разброса")])
+    text(slide, inner_x, cursor + 0.28, inner_w, [
+        "Применено ", ("центрированное логарифмическое преобразование",), " с мультипликативной "
+        "заменой нулей — стандартная практика для составов. Дальше — главные компоненты "
+        "и кластеризация уже в этом пространстве."], size=SMALL, line=1.45)
 
-    foot(slide, "признаковое пространство", "критерий 1 · проработка")
+    rows = [("Признаков", "11"), ("Наблюдений", "20"), ("Компонент после сжатия", "5"),
+            ("Объяснённый разброс", "90 %")]
+    kv_top = BODY_BOT - PAD - kv_height(rows)
+    hline(slide, inner_x, kv_top - 0.28, inner_w)
+    kv(slide, inner_x, kv_top, inner_w, rows)
+
+    foot(slide, "признаковое пространство", "критерий 1 · проработка", index=index, total=total)
 
 
-def slide_models(prs):
+def slide_models(prs, index, total):
     slide = new_slide(prs, "Блок B1, вторая половина. Назвать модели вслух, показать карту. "
                            "Подчеркнуть: имена не придуманы вручную — они собираются из признаков, "
                            "наиболее отличающих группу.")
-    y = head(slide, "Пять аудиторных моделей", "Что сеть делает на самом деле")
+    y = head(slide, "Аудиторные модели · 1:50–2:10", "Что сеть делает на самом деле")
 
-    shot_w = px(690)
-    picture(slide, "clusters.png", M, y, shot_w, 3.95)
+    shot_w = 6.35
+    picture(slide, "clusters.png", M, y, shot_w, BODY_BOT - y)
 
-    x = M + shot_w + 0.32
-    w = CONTENT_W - shot_w - 0.32
+    x = M + shot_w + GUTTER
+    w = CONTENT_W - shot_w - GUTTER
     models = [
-        (C0, "Массовые просветители · 8", "Массовый охват и широкая линейка форматов"),
-        (C1, "Медийные площадки · 5", "Заметность в медиа при камерном формате"),
-        (C2, "Продуктовые мастерские · 3", "Сильное ядро резидентов, высокая отдача в продуктах"),
-        (C3, "Открытые бесплатные площадки · 2", "Бесплатная модель, крупные потоки, узкая линейка"),
-        (C4, "Профессиональные академии · 2", "Ставка на повышение квалификации и мастер-классы"),
+        (C0, "Массовые просветители", "8", "Массовый охват и широкая линейка форматов"),
+        (C1, "Медийные площадки", "5", "Заметность в медиа при камерном формате"),
+        (C2, "Продуктовые мастерские", "3", "Сильное ядро резидентов, высокая отдача в продуктах"),
+        (C3, "Открытые бесплатные площадки", "2", "Бесплатная модель, крупные потоки, узкая линейка"),
+        (C4, "Профессиональные академии", "2", "Ставка на повышение квалификации и мастер-классы"),
     ]
-    card_h = 0.75
-    for index, (color, name, body) in enumerate(models):
-        row_y = y + index * (card_h + 0.1)
-        rect(slide, x, row_y, w, card_h)
-        dot(slide, x + 0.2, row_y + 0.19, 0.1, color)
-        frame = textbox(slide, x + 0.38, row_y + 0.13, w - 0.58, 0.24)
+    span = BODY_BOT - y
+    card_h = (span - 4 * 0.14) / 5
+    for order, (color, name, count, body) in enumerate(models):
+        top = y + order * (card_h + 0.14)
+        rect(slide, x, top, w, card_h)
+        dot(slide, x + PAD, top + 0.235, 0.115, color)
+        frame = textbox(slide, x + PAD + 0.24, top + 0.17, w - PAD - 0.6, 0.26)
         p = para(frame, first=True, line=1.0)
-        run(p, name, size=11.25, color=INK, bold=True)
-        frame = textbox(slide, x + 0.2, row_y + 0.4, w - 0.4, 0.3)
-        rich(frame, [body], first=True, size=10.5, line=1.3)
+        run(p, name, size=SMALL + 0.5, color=INK, bold=True)
+        frame = textbox(slide, x + PAD, top + 0.17, w - 2 * PAD, 0.26)
+        p = para(frame, first=True, line=1.0, align=PP_ALIGN.RIGHT)
+        run(p, count, size=SMALL + 0.5, color=INK3, face=MONO)
+        text(slide, x + PAD + 0.24, top + 0.50, w - PAD - 0.48, [body], size=NOTE, line=1.35)
 
-    foot(slide, "раздел «Кластеры»", "критерий 1 · проработка")
+    foot(slide, "раздел «Кластеры»", "критерий 1 · проработка", index=index, total=total)
 
 
-def slide_proof(prs):
-    slide = new_slide(prs, "Блок B2. Самый сильный слайд по критерию 1. Логика: на двадцати "
-                           "наблюдениях кластеры можно получить всегда — поэтому мы проверили, "
-                           "что они не случайны. Назвать p = 0,0005 и ARI 0,982. Если горит время — "
-                           "оставить только p-value.")
+def slide_proof(prs, index, total):
+    slide = new_slide(prs, "Блок B2. Самый сильный слайд по критерию 1 — он же самый дорогой: "
+                           "двадцать баллов. Логика: на двадцати наблюдениях кластеры можно "
+                           "получить всегда, поэтому мы проверили, что они не случайны. Назвать "
+                           "p = 0,0005 и ARI 0,982. Если горит время — оставить только p-значение.")
     y = head(slide, "Доказательство · 2:10–3:10",
-             "На двадцати наблюдениях кластеры получаются всегда. Мы проверили, что эти — настоящие.",
-             title_size=27)
+             "На двадцати наблюдениях кластеры получаются всегда. Мы проверили, что эти — настоящие.")
 
     cards = [
         ("Перестановочный тест", "Структура не случайна",
@@ -554,37 +870,47 @@ def slide_proof(prs):
          "Каждый центр по очереди убирается, модель пересобирается, результат сравнивается "
          "по индексу Рэнда.",
          [("Средний ARI", "0,982"), ("Худший прогон", "0,849"), ("Сменили кластер", "0 центров")]),
-        ("Согласие алгоритмов", "Три метода дают одно и то же",
-         "Разные семейства сходятся на близком разбиении — значит, дело в данных, а не в выбранном методе.",
+        ("Согласие алгоритмов", "Три метода дают одно разбиение",
+         "Разные семейства сходятся на близком результате — значит, дело в данных, "
+         "а не в выбранном методе.",
          [("k-средние ~ Уорд", "1,000"), ("GMM ~ k-средние", "0,757"), ("Устойчивость мер", "96 %")]),
     ]
-    gap = 0.28
-    card_w = (CONTENT_W - 2 * gap) / 3
-    for index, (eyebrow, title, body, rows) in enumerate(cards):
-        x = M + index * (card_w + gap)
-        rect(slide, x, y, card_w, 3.02)
-        cursor = panel_head(slide, x + 0.22, y + 0.22, card_w - 0.44,
-                            eyebrow=eyebrow, title=title, body=[body], body_size=10.5)
-        hline(slide, x + 0.22, cursor + 0.04, card_w - 0.44)
-        kv(slide, x + 0.22, cursor + 0.18, card_w - 0.44, rows, size=10.5, gap=0.235)
+    card_w = (CONTENT_W - 2 * GUTTER) / 3
+    inner_w = card_w - 2 * PAD
 
-    hline(slide, M, y + 3.25, CONTENT_W)
-    frame = textbox(slide, M, y + 3.44, CONTENT_W, 0.7)
-    rich(frame, ["Число кластеров тоже не назначено рукой: перебор k от 2 до 5 по четырём метрикам "
-                 "сразу — силуэт, стабильность на бутстрапе, баланс размеров и индекс Дэвиса—Болдина. "
-                 "Сводный балл у ", ("k = 5",), " — 0,976 против 0,592 у ближайшего."],
-         first=True, size=11.25, line=1.45)
+    footnote = ["Число кластеров тоже не назначено рукой: перебор k от 2 до 5 по четырём метрикам "
+                "сразу — силуэт, стабильность на бутстрапе, баланс размеров и индекс Дэвиса—Болдина. "
+                "Сводный балл у ", ("k = 5",), " — 0,976 против 0,592 у ближайшего."]
+    footnote_h = block_h(footnote, 11.2, SMALL, SANS, 1.45)
+    footnote_y = BODY_BOT - footnote_h
 
-    foot(slide, "раздел «Кластеры» → проверки", "критерий 1 · проработка")
+    # Таблицы в карточках выравниваются по одной линии: разная длина заголовков
+    # и пояснений не должна ломать горизонтальный ритм слайда.
+    lines = title_lines_max([t for _, t, _, _ in cards], inner_w)
+    body_h = max(panel_text_h(inner_w, eyebrow=e, title=t, body=[b], body_size=NOTE + 0.5,
+                              title_lines=lines) for e, t, b, _ in cards)
+    card_h = PAD + body_h + 0.34 + kv_height(cards[0][3], NOTE + 0.5) + PAD
+    for order, (eyebrow, title, card_body, rows) in enumerate(cards):
+        x = M + order * (card_w + GUTTER)
+        rect(slide, x, y, card_w, card_h)
+        panel_text(slide, x + PAD, y + PAD, inner_w, eyebrow=eyebrow, title=title,
+                   body=[card_body], body_size=NOTE + 0.5, title_lines=lines)
+        hline(slide, x + PAD, y + PAD + body_h + 0.17, inner_w)
+        kv(slide, x + PAD, y + PAD + body_h + 0.34, inner_w, rows, size=NOTE + 0.5)
+
+    hline(slide, M, footnote_y - 0.30, CONTENT_W)
+    text(slide, M, footnote_y, 11.2, footnote, size=SMALL, line=1.45)
+
+    foot(slide, "раздел «Кластеры» → проверки", "критерий 1 · проработка", index=index, total=total)
 
 
-def slide_rec_logic(prs):
+def slide_rec_logic(prs, index, total):
     slide = new_slide(prs, "Блок C, первая половина. Показать, что рекомендация — не «совет вообще», "
                            "а разрыв с медианой сопоставимых центров, переведённый в натуральную величину.")
-    y = head(slide, "Рекомендации · 3:10–4:10", "Не совет, а посчитанный разрыв")
+    y = head(slide, "Рекомендации · 3:10–3:40", "Не совет, а посчитанный разрыв")
 
-    left_w = px(660)
-    bullets(slide, M, y + 0.08, left_w, [
+    left_w = 6.45
+    bullets_fit(slide, M, y, left_w, [
         ["Центр сравнивается с ", ("медианой своей аудиторной модели",), ". Если в модели меньше пяти "
          "центров — со всей сетью; круг сравнения указан в каждой мере."],
         ["Разрыв переводится в натуральную величину: участники, работы, рубли, публикации."],
@@ -592,196 +918,387 @@ def slide_rec_logic(prs):
          ("надёжности исходных данных",), "."],
         ["Мера пересобирается на возмущённых данных — ", ("20 прогонов",), ", чтобы отсеять артефакты "
          "одной выборки."],
-    ], markers=["01", "02", "03", "04"], size=12.75, gap=18, marker_w=0.26)
+    ], BODY_BOT, markers=["01", "02", "03", "04"], size=BODY, marker_w=0.34)
 
-    x = M + left_w + 0.34
-    w = CONTENT_W - left_w - 0.34
-    rect(slide, x, y, w, 3.92)
-    cursor = panel_head(slide, x + 0.24, y + 0.24, w - 0.48,
-                        eyebrow="Пример меры", title="Поднять наполняемость «Мастер-классы»",
-                        body=["На «Мастер-классы» приходит ", ("0,3 чел.",), " на мероприятие при медиане ",
-                              ("13,8",), " в своей модели — это нижний квартиль. Мероприятия уже проводятся "
-                              "(68 шт.), значит резерв закрывается работой с набором, а не новой программой."])
-    hline(slide, x + 0.24, cursor + 0.04, w - 0.48)
-    cursor = kv(slide, x + 0.24, cursor + 0.18, w - 0.48,
-                [("Приоритет", "100 из 100"), ("Оценка эффекта", "+914 чел."), ("Лучший в группе", "ОГИК · 130,2")])
+    x = M + left_w + 0.5
+    w = CONTENT_W - left_w - 0.5
+    rect(slide, x, y, w, BODY_BOT - y)
+    inner_x, inner_w = x + PAD, w - 2 * PAD
+    panel_text(slide, inner_x, y + PAD + 0.04, inner_w,
+               eyebrow="Пример меры", title="Поднять наполняемость мастер-классов",
+               body=["На «Мастер-классы» приходит ", ("0,3 чел.",), " на мероприятие при медиане ",
+                     ("13,8",), " в своей модели — это нижний квартиль. Мероприятия уже проводятся "
+                     "(68 шт.), значит резерв закрывается работой с набором, а не новой программой."])
 
-    tag = rect(slide, x + 0.24, cursor + 0.1, 1.85, 0.26,
-               fill=RGBColor(0xF7, 0xF1, 0xE4), line=RGBColor(0xDC, 0xCB, 0xA6), radius=0.16)
-    frame = tag.text_frame
-    frame.margin_left = frame.margin_right = Inches(0.06)
-    frame.margin_top = frame.margin_bottom = 0
-    frame.vertical_anchor = MSO_ANCHOR.MIDDLE
-    p = para(frame, first=True, line=1.0, align=PP_ALIGN.CENTER)
-    run(p, "данные под вопросом", size=9.0, color=WARN)
+    rows = [("Приоритет", "100 из 100"), ("Оценка эффекта", "+914 чел."), ("Лучший в группе", "ОГИК · 130,2")]
+    tag_h = line_height(NOTE, SANS, 1.0) + 0.16
+    kv_top = BODY_BOT - PAD - tag_h - 0.26 - kv_height(rows)
+    hline(slide, inner_x, kv_top - 0.28, inner_w)
+    cursor = kv(slide, inner_x, kv_top, inner_w, rows)
+    tag(slide, inner_x, cursor + 0.30, "данные под вопросом")
 
-    foot(slide, "раздел «Рекомендации»", "критерий 3 · востребованность")
+    foot(slide, "раздел «Рекомендации»", "критерий 3 · востребованность", index=index, total=total)
 
 
-def slide_rec_screen(prs):
+def slide_rec_screen(prs, index, total):
     slide = new_slide(prs, "Блок C, вторая половина. Показать очередь мер на экране. Одна фраза: "
-                           "«пятьдесят адресных действий, у каждого — обоснование, эффект и уровень доверия».")
-    y = head(slide, "Пятьдесят адресных действий", "Очередь мер с доказательной базой")
+                           "«пятьдесят адресных действий, у каждого — обоснование, эффект и "
+                           "уровень доверия». Обратить внимание на фильтр «только с надёжными данными».")
+    y = head(slide, "Очередь мер · 3:40–4:10", "Очередь мер с доказательной базой")
 
-    shot_w = px(700)
-    picture(slide, "recs.png", M, y, shot_w, 3.95)
+    shot_w = 7.55
+    picture(slide, "recs.png", M, y, shot_w, BODY_BOT - y)
 
-    x = M + shot_w + 0.36
-    w = CONTENT_W - shot_w - 0.36
-    for index, (label, value, unit, note) in enumerate([
+    x = M + shot_w + 0.5
+    w = CONTENT_W - shot_w - 0.5
+    rows = [
         ("Мер в очереди", "50", None, "по семи типам, средний приоритет 51"),
         ("Устойчивы к возмущению данных", "96", "%", "20 прогонов, средняя выживаемость 98 %"),
         ("Центров охвачено", "20", "из 20", "у каждого — своя очередь действий"),
+    ]
+    step = (BODY_BOT - y) / len(rows)
+    for order, (caption, value, unit, note) in enumerate(rows):
+        top = y + order * step
+        stat(slide, x, top, w, caption, value, unit=unit, note=note, size=34)
+        if order < len(rows) - 1:
+            hline(slide, x, top + step - 0.30, w)
+
+    foot(slide, "раздел «Рекомендации»", "критерий 3 · востребованность", index=index, total=total)
+
+
+def slide_economy(prs, index, total):
+    """Единственный тёмный разворот: на нём называется главная цифра."""
+    with skin(DARK):
+        slide = new_slide(prs, "Блок D1. Критерий 4. Обязательно проговорить: резерв считается при "
+                               "НЕИЗМЕННОМ числе мероприятий — это не «дайте денег», а «используйте "
+                               "то, что уже есть». Показать полосы: мы сами вычли шесть мер по "
+                               "четырём центрам, у которых данные противоречивы.",
+                          tone=DARK)
+        y = head(slide, "Экономика · 4:10–4:40", "Резерв закрывается без роста бюджета")
+
+        column = CONTENT_W / 5
+        stat_bottom = y
+        for order, (caption, value, unit, note) in enumerate([
+            ("Платные услуги", "+9,7", "млн ₽", "9 центров"),
+            ("Творческие работы", "+1 411", None, "8 центров"),
+            ("Участники", "+753", None, "13 центров"),
+            ("Публикации", "+317", None, "8 центров"),
+            ("Мероприятия", "+81", None, "6 центров"),
+        ]):
+            stat_bottom = max(stat_bottom, stat(
+                slide, M + order * column, y + 0.14, column - 0.26,
+                caption, value, unit=unit, note=note, size=40))
+
+        rule_y = stat_bottom + 0.46
+        hline(slide, M, rule_y, CONTENT_W)
+        top = rule_y + 0.32
+
+        col = (CONTENT_W - 2 * 0.62) / 3
+        panel_text(slide, M, top, col, title="Откуда берётся",
+                   body=["Это разрыв между центром и медианой ", ("сопоставимых",), " центров — "
+                         "при неизменном числе мероприятий и неизменном бюджете. Не «дайте денег», "
+                         "а «используйте то, что уже проводится»."], body_size=SMALL)
+
+        x2 = M + col + 0.62
+        panel_text(slide, x2, top, col, title="Почему числу можно верить",
+                   body=["Показан ", ("подтверждённый",), " резерв: из полного вычтены шесть мер "
+                         "по четырём центрам, у которых показатели внутри отчёта противоречат "
+                         "друг другу. Мы сами уменьшили свою цифру."], body_size=SMALL)
+
+        # Полосы «подтверждено из полного»: видно, где мы срезали сами себя.
+        x3 = M + 2 * (col + 0.62)
+        cursor = label(slide, x3, top, col, "Полный резерв → подтверждённый") + 0.26
+        bars = [
+            ("Платные услуги", 9.6698, 9.6698),
+            ("Творческие работы", 1411, 1411),
+            ("Мероприятия", 81.2, 114.5),
+            ("Публикации", 317, 550),
+            ("Участники", 753.3, 1689.9),
+        ]
+        step = (BODY_BOT - cursor) / len(bars)
+        for caption, part, whole in bars:
+            compare_bar(slide, x3, cursor, col, caption, part, whole)
+            cursor += step
+
+        foot(slide, "раздел «Рекомендации» → совокупный резерв", "критерий 4 · экономика",
+             index=index, total=total)
+
+
+def slide_market(prs, index, total):
+    slide = new_slide(prs, "Блок D2. Критерий 4, вторая половина: рынок и бизнес-модель. Главное "
+                           "сказать вслух: единица тиражирования — сеть, а не центр, и стоимость "
+                           "обслуживания от числа центров почти не растёт. Объём рынка по открытым "
+                           "источникам не выдумываем: называем эффект на одну сеть и множитель. "
+                           "Если спросят про объём рынка — ответ именно такой.")
+    y = head(slide, "Рынок и модель · 4:40–5:10", "Единица внедрения — сеть, а не центр")
+
+    left_w = 7.45
+    right_x = M + left_w + 0.5
+    right_w = CONTENT_W - left_w - 0.5
+
+    # Юнит-экономика сверху: это и есть ответ на «экономическую целесообразность».
+    column = left_w / 3
+    stats_bottom = y
+    for order, (caption, value, unit, note) in enumerate([
+        ("Резерв на сеть из 20 центров", "9,7", "млн ₽", "в год, подтверждённая часть, только выручка"),
+        ("В пересчёте на центр", "≈ 0,48", "млн ₽", "в год, плюс работы, участники, публикации"),
+        ("Стоимость эксплуатации", "1", "контейнер", "без внешних лицензий и платных сервисов"),
     ]):
-        stat(slide, x, y + 0.3 + index * 1.24, w, label, value, unit=unit, note=note)
+        stats_bottom = max(stats_bottom, stat(
+            slide, M + order * column, y, column - 0.34, caption, value, unit=unit,
+            note=note, size=32))
 
-    foot(slide, "раздел «Рекомендации»", "критерий 3 · востребованность")
+    rows = [
+        ("Кому", "Тому, кто сводит отчётность нескольких учреждений: учредителю сети, "
+                 "региональному органу управления культурой, вузу-держателю центров. Признак "
+                 "применимости один — те же формы 1 и 2."),
+        ("Что продаётся", "Не экран с графиками, а сокращение цикла «отчёт → решение». Внедрение — "
+                          "разовая настройка на форматы отчётности и развёртывание; дальше "
+                          "подписка на пересчёт, поддержку и новые показатели."),
+        ("Почему тиражируется", "Конвейер читает формы, а не конкретные файлы. Новый центр — "
+                                "ещё один файл в каталоге, а не новая интеграция: стоимость "
+                                "обслуживания сети почти не растёт с числом центров."),
+    ]
+    top = stats_bottom + 0.46
+    heights = [0.30 + block_h([b], left_w, SMALL, SANS, 1.45) for _, b in rows]
+    gap = min(0.50, max(0.24, (BODY_BOT - top - sum(heights)) / (len(rows) - 1)))
+    cursor = top
+    for order, ((name, body), height) in enumerate(zip(rows, heights)):
+        # Линейка ставится посередине зазора, а не на фиксированном отступе:
+        # иначе на плотном слайде она садится на выносные элементы абзаца.
+        hline(slide, M, cursor - (0.26 if order == 0 else gap / 2), left_w)
+        label(slide, M, cursor, left_w, name)
+        text(slide, M, cursor + 0.30, left_w, [body], size=SMALL, line=1.45)
+        cursor += height + gap
+
+    rect(slide, right_x, y, right_w, BODY_BOT - y)
+    inner_x, inner_w = right_x + PAD, right_w - 2 * PAD
+    cursor = panel_text(slide, inner_x, y + PAD + 0.04, inner_w,
+                        eyebrow="Честно про рынок",
+                        body=["Объём рынка по открытым источникам мы не считали: в датасете его "
+                              "нет, а выдуманная цифра в семиминутной защите проверяется за "
+                              "полминуты."])
+    text(slide, inner_x, cursor + 0.28, inner_w, [
+        "Считаем проверяемое: эффект на сеть, с которой работаем, и стоимость её обслуживания. "
+        "Эффект линеен по числу ", ("сетей",), ", а не центров — вторая такая же сеть даёт ещё "
+        "9,7 млн ₽ при той же стоимости разработки. Сколько таких сетей, знает заказчик; "
+        "умножается одна и та же величина."], size=SMALL, line=1.45)
+
+    kv_rows = [("Сетей в расчёте", "1"), ("Центров в сети", "20"), ("Годовой резерв", "9,7 млн ₽")]
+    kv_top = BODY_BOT - PAD - kv_height(kv_rows)
+    hline(slide, inner_x, kv_top - 0.30, inner_w)
+    kv(slide, inner_x, kv_top, inner_w, kv_rows)
+
+    foot(slide, "экономика внедрения", "критерий 4 · бизнес-модель", index=index, total=total)
 
 
-def slide_economy(prs):
-    slide = new_slide(prs, "Блок D. Ключевой слайд по критерию 4. Обязательно проговорить: резерв "
-                           "считается при НЕИЗМЕННОМ числе мероприятий — это не «дайте денег», "
-                           "а «используйте то, что уже есть». И назвать разницу полного и "
-                           "подтверждённого резерва: мы сами вычли шесть мер по четырём центрам.")
-    y = head(slide, "Экономика · 4:10–5:10", "Резерв закрывается без роста бюджета")
-
-    column = CONTENT_W / 5
-    for index, (label, value, unit, note) in enumerate([
-        ("Платные услуги", "+9,7", "млн ₽", "9 центров"),
-        ("Творческие работы", "+1 411", None, "8 центров"),
-        ("Участники", "+753", None, "13 центров"),
-        ("Публикации", "+317", None, "8 центров"),
-        ("Мероприятия", "+81", None, "6 центров"),
-    ]):
-        stat(slide, M + index * column, y + 0.3, column - 0.22, label, value, unit=unit, note=note, size=38)
-
-    hline(slide, M, y + 2.2, CONTENT_W)
-
-    half = (CONTENT_W - 0.5) / 2
-    cursor = panel_head(slide, M, y + 2.45, half, title="Откуда берётся",
-                        body=["Это разрыв между центром и медианой ", ("сопоставимых",), " центров — "
-                              "при неизменном числе мероприятий и неизменном бюджете. Не «дайте денег», "
-                              "а «используйте то, что уже проводится»."])
-    panel_head(slide, M + half + 0.5, y + 2.45, half, title="Почему числу можно верить",
-               body=["Показан ", ("подтверждённый",), " резерв. Полный — 9,67 млн ₽ выручки и "
-                     "1 690 участников; из него ", ("вычтены шесть мер по четырём центрам",),
-                     ", у которых показатели внутри отчёта противоречат друг другу. Мы сами уменьшили "
-                     "свою цифру, а не защищаем максимальную."])
-    del cursor
-
-    foot(slide, "раздел «Рекомендации» → совокупный резерв", "критерий 4 · экономика")
-
-
-def slide_honesty(prs):
+def slide_honesty(prs, index, total):
     slide = new_slide(prs, "Блок E. Отличает нас от типового дашборда. Сказать прямо: в задании была "
                            "обратная связь, в датасете её нет, синтетику мы рисовать не стали. "
                            "Показать панель «Чего в данных нет».")
-    y = head(slide, "Честность данных · 5:10–6:10", "Мы не рисуем то, чего нет")
+    y = head(slide, "Честность данных · 5:35–6:10", "Мы не рисуем то, чего нет")
 
-    left_w = px(660)
-    frame = textbox(slide, M, y, left_w, 1.5)
-    rich(frame, ["В задании была обратная связь. В датасете её нет — ни одной строки об "
-                 "удовлетворённости, ни одного отзыва. ",
-                 ("Синтетический NPS генерируется за час, но дашборд из выдуманных метрик "
-                  "не годится для решений.",)], first=True, size=15.75, line=1.42)
+    cursor = text(slide, M, y, 11.4, [
+        "В задании была обратная связь. В датасете её нет — ни одной строки об "
+        "удовлетворённости. ",
+        ("Синтетический NPS генерируется за час, но решать по выдуманным метрикам нельзя.",)],
+        size=19.0, line=1.38)
 
-    box_y = y + 1.68
-    rect(slide, M, box_y, left_w, 2.3)
-    inner = panel_head(slide, M + 0.24, box_y + 0.22, left_w - 0.48, title="Что сделано вместо")
-    bullets(slide, M + 0.24, inner, left_w - 0.48, [
+    hline(slide, M, cursor + 0.34, CONTENT_W)
+
+    top = cursor + 0.66
+    left_w = 6.35
+    rect(slide, M, top, left_w, BODY_BOT - top)
+    inner = panel_text(slide, M + PAD, top + PAD, left_w - 2 * PAD, title="Что сделано вместо")
+    bullets_fit(slide, M + PAD, inner + 0.26, left_w - 2 * PAD, [
         ["Наблюдаемые заменители: ", ("конверсия в готовую работу",), ", доля закрепившихся резидентов, "
          "внешняя заметность результата."],
         ["Отдельная панель ", ("«Чего в данных нет»",), ": перечень недостающих источников и что каждый "
          "из них дал бы."],
         ["Показатель без базы 2025 года не получает ни прироста, ни нуля — он помечен как несравнимый."],
-    ], size=11.25, gap=12)
+    ], BODY_BOT - PAD, size=SMALL)
 
-    picture(slide, "eng.png", M + left_w + 0.32, y, CONTENT_W - left_w - 0.32, 3.9)
-    foot(slide, "раздел «Вовлечённость»", "критерий 1 · проработка")
+    picture(slide, "gaps.png", M + left_w + GUTTER, top, CONTENT_W - left_w - GUTTER,
+            BODY_BOT - top, align="center", valign="middle")
+    foot(slide, "раздел «Вовлечённость»", "критерий 1 · проработка", index=index, total=total)
 
 
-def slide_tech(prs):
+def slide_process(prs, index, total):
+    slide = new_slide(prs, "Блок E1. Положение требует показать процесс разработки. Логика "
+                           "рассказа: на каждом этапе было решение, и у каждого решения была "
+                           "цена. Сильнее всего звучит правая колонка — что мы выбросили. "
+                           "Назвать вслух хотя бы синтетический NPS и симулятор.")
+    y = head(slide, "Процесс · 5:10–5:35", "Четыре решения, которые определили продукт")
+
+    left_w = 6.9
+    stages = [
+        ("Разбор", "Сначала журнал, потом цифры",
+         "Двадцать книг с разными шаблонами. Решили: ни одной правки молча — каждая попадает "
+         "в журнал и видна рядом с числом."),
+        ("Признаки", "Не сравнивать несравнимое",
+         "Доли каналов — состав, а не обычные числа. Решили: CLR-преобразование вместо сырых "
+         "долей, иначе расстояния считаются неверно."),
+        ("Модели", "Сначала проверка, потом вывод",
+         "На двадцати наблюдениях кластеры выходят всегда. Решили: k по четырём метрикам, "
+         "разбиение принимается после теста значимости."),
+        ("Витрина", "Только то, что пришло из API",
+         "Первый интерфейс на Vue показывал числа, зашитые в код. Решили: переписать с нуля "
+         "и удалить всё, чего нет в ответах сервиса."),
+    ]
+    col_w = (left_w - 0.4) / 2
+    body_w = col_w - 0.42
+    # Заголовки занимают одинаковое число строк, иначе абзацы в соседних
+    # ячейках начинаются на разной высоте и сетка разваливается.
+    head_lines = title_lines_max([t for _, t, _ in stages], body_w)
+    head_h = head_lines * line_height(H2, SERIF, 1.08)
+    cell_h = (0.30 + head_h + 0.14
+              + max(block_h([b], body_w, SMALL, SANS, 1.45) for _, _, b in stages))
+    row_gap = max(0.30, BODY_BOT - y - 2 * cell_h)
+    for order, (name, title, body) in enumerate(stages):
+        x = M + (order % 2) * (col_w + 0.4)
+        top = y + (order // 2) * (cell_h + row_gap)
+        hline(slide, x, top - (0.24 if order < 2 else row_gap / 2), col_w)
+        frame = textbox(slide, x, top + 0.02, 0.42, 0.24)
+        p = para(frame, first=True, line=1.0)
+        run(p, f"0{order + 1}", size=MICRO, color=INK3, face=MONO, spacing=0.6)
+        label(slide, x + 0.42, top, col_w - 0.42, name)
+        frame = textbox(slide, x + 0.42, top + 0.28, body_w, head_h + 0.06)
+        p = para(frame, first=True, line=1.08)
+        run(p, title, size=H2, color=INK, bold=True, face=SERIF, spacing=-0.3)
+        text(slide, x + 0.42, top + 0.30 + head_h + 0.14, body_w, [body], size=SMALL, line=1.45)
+
+    x = M + left_w + 0.5
+    w = CONTENT_W - left_w - 0.5
+    rect(slide, x, y, w, BODY_BOT - y)
+    inner_x, inner_w = x + PAD, w - 2 * PAD
+    inner = panel_text(slide, inner_x, y + PAD + 0.04, inner_w,
+                       eyebrow="Что выбросили по дороге",
+                       title="Отказ — тоже результат разработки")
+    bullets_fit(slide, inner_x, inner + 0.26, inner_w, [
+        [("Синтетическая обратная связь и NPS",), " — их нет в отчётности, а решать по "
+         "выдуманному числу нельзя."],
+        [("Симулятор с ползунками",), " — умножал уже посчитанные оценки на коэффициенты "
+         "и выдавал это за эксперимент."],
+        [("Квартальные ряды",), " — были записаны прямо в коде интерфейса, в формах их нет."],
+        [("Радар «средней нормы сети»",), " — 50 баллов по каждой оси были условным ориентиром, "
+         "а не расчётом."],
+    ], BODY_BOT - PAD, size=SMALL)
+
+    foot(slide, "процесс разработки", "критерий 1 · проработка", index=index, total=total)
+
+
+PIPELINE = [
+    ("01", "Excel", "20 книг"),
+    ("02", "Разбор", "единицы, журнал"),
+    ("03", "Признаки", "11 на центр"),
+    ("04", "CLR + PCA", "5 компонент"),
+    ("05", "Кластеры", "k = 5"),
+    ("06", "Проверки", "перестановки, LOO"),
+    ("07", "Меры", "50 действий"),
+]
+
+
+def slide_tech(prs, index, total):
     slide = new_slide(prs, "Быстрый слайд. Не зачитывать таблицу — назвать два факта: конвейер "
-                           "целиком пересчитывается за 6,3 секунды и всё воспроизводится "
+                           "целиком пересчитывается за 9,6 секунды и всё воспроизводится "
                            "с фиксированным сидом.")
-    y = head(slide, "Как это устроено", "Конвейер целиком — 6,3 секунды")
+    y = head(slide, "Архитектура · 6:10–6:30", "Конвейер целиком — 9,6 секунды")
 
     cards = [
-        ("Данные", "Устойчивый разбор 20 разнородных книг Excel, приведение единиц, журнал каждой правки"),
+        ("Данные", "Устойчивый разбор 20 разнородных книг Excel, приведение единиц, "
+                   "журнал каждой правки"),
         ("Модели", "CLR-признаки, PCA, k-средние / Уорд / GMM, перестановочный тест, leave-one-out"),
         ("API", "FastAPI, 14 эндпоинтов, результат конвейера держится в памяти процесса"),
         ("Витрина", "React 19 + TypeScript, графики собственные на SVG, палитра проверена машинно"),
     ]
-    gap = 0.26
-    card_w = (CONTENT_W - 3 * gap) / 4
-    for index, (name, body) in enumerate(cards):
-        x = M + index * (card_w + gap)
-        rect(slide, x, y + 0.2, card_w, 1.55)
-        frame = textbox(slide, x + 0.22, y + 0.42, card_w - 0.44, 0.22)
-        p = para(frame, first=True, line=1.0)
-        run(p, name, size=9, color=INK3, face=MONO, spacing=1.2, caps=True)
-        frame = textbox(slide, x + 0.22, y + 0.7, card_w - 0.44, 1.0)
-        rich(frame, [body], first=True, size=11.25, line=1.4)
+    card_w = (CONTENT_W - 3 * 0.3) / 4
+    inner_w = card_w - 2 * PAD
+    label_h = line_height(MICRO, MONO, 1.0)
+    card_h = PAD + label_h + 0.20 + max(
+        block_h([body], inner_w, SMALL, SANS, 1.45) for _, body in cards) + PAD
+    for order, (name, body) in enumerate(cards):
+        x = M + order * (card_w + 0.3)
+        rect(slide, x, y, card_w, card_h)
+        label(slide, x + PAD, y + PAD, inner_w, name)
+        text(slide, x + PAD, y + PAD + label_h + 0.20, inner_w, [body], size=SMALL, line=1.45)
 
-    hline(slide, M, y + 2.1, CONTENT_W)
-    column = CONTENT_W / 3
-    for index, (label, value, unit, note) in enumerate([
-        ("Сборка конвейера", "6,3", "с", "от Excel до рекомендаций"),
+    rows = [
+        ("Сборка конвейера", "9,6", "с", "от книги Excel до готовой меры, на сервере демо"),
         ("Воспроизводимость", "100", "%", "фиксированный сид во всех случайных процессах"),
         ("Развёрнуто", "Docker", None, "HTTPS, автопродление сертификата"),
-    ]):
-        stat(slide, M + index * column, y + 2.35, column - 0.3, label, value, unit=unit, note=note)
+    ]
+    stat_h = (line_height(NOTE, SANS, 1.1) + 0.09 + line_height(30, SANS, 1.0) + 0.10
+              + line_height(NOTE, SANS, 1.25))
+    stats_y = BODY_BOT - stat_h
+    column = CONTENT_W / 3
+    for order, (caption, value, unit, note) in enumerate(rows):
+        stat(slide, M + order * column, stats_y, column - 0.4, caption, value, unit=unit,
+             note=note, size=30)
+    hline(slide, M, stats_y - 0.36, CONTENT_W)
 
-    foot(slide, "архитектура", "критерий 1 · проработка")
+    # Конвейер одной строкой: от книги Excel до конкретной меры.
+    chain_y = y + card_h + 0.50
+    hline(slide, M, chain_y + 0.17, CONTENT_W, color=RULE)
+    step = CONTENT_W / len(PIPELINE)
+    for order, (number, name, note) in enumerate(PIPELINE):
+        x = M + order * step
+        dot(slide, x, chain_y + 0.115, 0.11, INK if order == 0 else RULE2)
+        frame = textbox(slide, x, chain_y + 0.40, step - 0.2, 0.26)
+        p = para(frame, first=True, line=1.0)
+        run(p, number + "  ", size=MICRO, color=INK3, face=MONO, spacing=0.6)
+        run(p, name, size=SMALL + 0.5, color=INK, bold=True)
+        text(slide, x, chain_y + 0.66, step - 0.2, [note], size=NOTE, line=1.25, color=INK3)
+
+    foot(slide, "архитектура", "критерий 1 · проработка", index=index, total=total)
 
 
-def slide_final(prs):
+def slide_final(prs, index, total):
     slide = new_slide(prs, "Блок F. Закрыть кругом: начали с «решений по отчётности не принимают» — "
                            "заканчиваем «вот пятьдесят решений». Назвать ссылку и остановиться. "
                            "Не добавлять новых фактов.")
-    y = head(slide, "Финал · 6:10–7:00", "Готово к внедрению сегодня")
+    y = head(slide, "Финал · 6:30–7:00", "Готово к внедрению сегодня")
 
-    # Левая колонка: вывод, затем — как платформа живёт дальше.
-    left_w = px(690)
-    frame = textbox(slide, M, y, left_w, 1.4)
-    rich(frame, ["Мы начали с того, что отчётность собирают, а решений по ней не принимают. ",
-                 ("Вот пятьдесят решений",), " — с обоснованием, оценкой эффекта и честной пометкой "
-                 "там, где данным нельзя доверять."], first=True, size=15.75, line=1.45)
+    band_h = 1.16
+    band_y = BODY_BOT - band_h
+    left_w = 6.55
 
-    hline(slide, M, y + 1.52, left_w)
+    cursor = text(slide, M, y, left_w, [
+        "Мы начали с того, что отчётность собирают, а решений по ней не принимают. ",
+        ("Вот пятьдесят решений",), " — с обоснованием, оценкой эффекта и честной пометкой "
+        "там, где данным нельзя доверять."], size=LEDE, line=1.45)
 
-    half = (left_w - 0.36) / 2
-    for index, (label, value, face, note) in enumerate([
+    hline(slide, M, cursor + 0.36, left_w)
+
+    half = (left_w - 0.4) / 2
+    row_y = cursor + 0.66
+    for order, (caption, value, face, note) in enumerate([
         ("Новый отчётный период", "POST /reload", MONO, "положить файлы в каталог — модели пересоберутся"),
         ("Новый показатель", "одна запись", SANS, "в схеме показателей — и он в конвейере"),
     ]):
-        x = M + index * (half + 0.36)
-        frame = textbox(slide, x, y + 1.78, half, 0.28)
-        p = para(frame, first=True, line=1.2)
-        run(p, label, size=9.75, color=INK2)
-        frame = textbox(slide, x, y + 2.08, half, 0.36)
-        p = para(frame, first=True, line=1.1)
-        run(p, value, size=17.5, color=INK, bold=True, face=face, spacing=-0.3)
-        frame = textbox(slide, x, y + 2.52, half, 0.6)
-        rich(frame, [note], first=True, size=9.75, line=1.35)
+        x = M + order * (half + 0.4)
+        text(slide, x, row_y, half, [caption], size=NOTE, line=1.1)
+        frame = textbox(slide, x, row_y + 0.30, half, 0.4)
+        p = para(frame, first=True, line=1.0)
+        run(p, value, size=17.0, color=INK, bold=True, face=face, spacing=-0.3)
+        text(slide, x, row_y + 0.78, half, [note], size=NOTE, line=1.35, color=INK3)
 
-    picture(slide, "orgs.png", M + left_w + 0.4, y, CONTENT_W - left_w - 0.4, 3.02)
+    picture(slide, "pace.png", M + left_w + GUTTER, y, CONTENT_W - left_w - GUTTER,
+            band_y - y - 0.42, align="right")
 
     # Нижняя полоса — единственное, что остаётся на экране в конце речи.
-    band_y = 5.24
-    rect(slide, M, band_y, CONTENT_W, 1.18, fill=PANEL, line=RULE2)
-    frame = textbox(slide, M + 0.34, band_y + 0.26, 4.6, 0.24)
+    rect(slide, M, band_y, CONTENT_W, band_h, line=RULE2)
+    label(slide, M + 0.38, band_y + 0.24, 4.6, "Демо · открыто прямо сейчас")
+    frame = textbox(slide, M + 0.38, band_y + 0.52, 7.0, 0.44)
     p = para(frame, first=True, line=1.0)
-    run(p, "Демо · открыто прямо сейчас", size=9, color=INK3, face=MONO, spacing=1.2, caps=True)
-    frame = textbox(slide, M + 0.34, band_y + 0.56, 6.4, 0.4)
-    p = para(frame, first=True, line=1.0)
-    run(p, "vitaliysoftware.duckdns.org", size=20, color=INK, face=MONO, spacing=-0.2)
+    run(p, "vitaliysoftware.duckdns.org", size=21.0, color=INK, face=MONO, spacing=-0.2)
 
-    frame = textbox(slide, M + 7.4, band_y + 0.36, CONTENT_W - 7.74, 0.7, anchor=MSO_ANCHOR.MIDDLE)
-    rich(frame, ["Можно открыть с телефона, пока мы говорим. Развёрнуто в Docker, работает по HTTPS."],
-         first=True, size=11.25, line=1.4, color=INK2)
+    note = ["Можно открыть с телефона, пока мы говорим. Развёрнуто в Docker, работает по HTTPS."]
+    note_x = M + 7.7
+    note_w = CONTENT_W - 7.7 - 0.38
+    text(slide, note_x, band_y + (band_h - block_h(note, note_w, SMALL, SANS, 1.4)) / 2,
+         note_w, note, size=SMALL, line=1.4)
 
-    foot(slide, "Vitaliy Software Solutions", "критерий 5 · презентация")
+    foot(slide, "Vitaliy Software Solutions", "критерий 5 · презентация", index=index, total=total)
 
 
 # ── сборка ────────────────────────────────────────────────────────────────────
@@ -789,7 +1306,7 @@ def slide_final(prs):
 BUILDERS = [
     slide_title, slide_problem, slide_dataset, slide_solution, slide_why_clusters,
     slide_models, slide_proof, slide_rec_logic, slide_rec_screen, slide_economy,
-    slide_honesty, slide_tech, slide_final,
+    slide_market, slide_process, slide_honesty, slide_tech, slide_final,
 ]
 
 
@@ -801,12 +1318,12 @@ def main() -> None:
     prs = Presentation()
     prs.slide_width = Inches(W)
     prs.slide_height = Inches(H)
-    for build in BUILDERS:
-        build(prs)
+    for number, build in enumerate(BUILDERS, start=1):
+        build(prs, number, len(BUILDERS))
 
-    out = Path(__file__).with_name(args.out) if not Path(args.out).is_absolute() else Path(args.out)
+    out = Path(args.out) if Path(args.out).is_absolute() else HERE / args.out
     prs.save(out)
-    print(f"{out} · {len(prs.slides.__iter__.__self__._sldIdLst)} слайдов · {out.stat().st_size // 1024} КБ")
+    print(f"{out} · {len(prs.slides._sldIdLst)} слайдов · {out.stat().st_size // 1024} КБ")
 
 
 if __name__ == "__main__":
